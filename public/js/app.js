@@ -6,7 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentTimetable = {};
     let subjectsData = [];
-    let availableTeachers = []; // Changed from availableSubjects
+    let availableTeachers = [];
+    let currentCell;
 
     // Initialize the app
     function initApp() {
@@ -17,8 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.timetable) {
                     currentTimetable = data.timetable;
                 }
-                // Load available teachers on startup
-                updateAvailableTeachers(); // Changed function name
+                updateAvailableTeachers();
             })
             .catch(error => {
                 console.error('Error loading initial data:', error);
@@ -30,7 +30,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Enhanced message display function
     function showMessage(message, type = 'info') {
-        // Remove any existing messages
         const existingMessages = document.querySelectorAll('.alert-message');
         existingMessages.forEach(msg => msg.remove());
 
@@ -55,7 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (timetableContainer) {
             timetableContainer.parentNode.insertBefore(messageDiv, timetableContainer);
             
-            // Auto-dismiss after 7 seconds for success messages
             if (type === 'success') {
                 setTimeout(() => {
                     if (messageDiv.parentNode) {
@@ -66,9 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // UPDATED: Function to update available teachers display
+    // Update available teachers display
     function updateAvailableTeachers() {
-        fetch('/get-available-teachers', { // Changed endpoint
+        fetch('/get-available-teachers', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -85,8 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // UPDATED: Function to update edit modal with available teachers
-        // UPDATED: Function to update edit modal with available teachers AND deleted teachers
+    // Update edit modal with available teachers AND deleted teachers
     function updateEditModalOptions() {
         const subjectSelect = document.getElementById('subject-select');
         if (!subjectSelect) return;
@@ -120,12 +117,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 availableHeader.className = "font-weight-bold text-primary";
                 subjectSelect.appendChild(availableHeader);
 
-                // Add available teachers
                 data.availableTeachers.forEach(teacher => {
                     const option = document.createElement('option');
                     option.value = teacher.name;
                     option.textContent = `${teacher.name} (${teacher.currentHours}/${teacher.maxHours}h - ${teacher.remainingHours}h left)`;
-                    option.style.color = "#28a745"; // Green for available
+                    option.style.color = "#28a745";
                     subjectSelect.appendChild(option);
                 });
             }
@@ -138,31 +134,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 deletedHeader.className = "font-weight-bold text-warning";
                 subjectSelect.appendChild(deletedHeader);
 
-                // Add deleted teachers (can be added back)
                 data.deletedTeachers.forEach(teacher => {
                     const option = document.createElement('option');
                     option.value = teacher.name;
                     option.textContent = `↩️ ${teacher.name} (was deleted - ${teacher.currentHours}/${teacher.maxHours}h)`;
-                    option.style.color = "#ff9800"; // Orange for deleted
+                    option.style.color = "#ff9800";
                     option.style.fontStyle = "italic";
                     subjectSelect.appendChild(option);
                 });
             }
 
             // Add separator for unavailable teachers (maxed out)
-            // Get all teacher names that are available or deleted
             const allAvailableNames = [];
             if (data.availableTeachers) allAvailableNames.push(...data.availableTeachers.map(t => t.name));
             if (data.deletedTeachers) allAvailableNames.push(...data.deletedTeachers.map(t => t.name));
             
-            // Find teachers that are maxed out (not in available or deleted lists)
             const maxedOutTeachers = [];
             subjectsData.forEach(subject => {
                 subject.teacherNames?.forEach(teacherName => {
                     if (!allAvailableNames.includes(teacherName)) {
                         maxedOutTeachers.push({
                             name: teacherName,
-                            maxHours: 5 // All teachers max at 5 hours now
+                            maxHours: 5
                         });
                     }
                 });
@@ -175,19 +168,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 unavailableHeader.className = "font-weight-bold text-secondary";
                 subjectSelect.appendChild(unavailableHeader);
 
-                // Show maxed out teachers
                 maxedOutTeachers.forEach(teacher => {
                     const option = document.createElement('option');
                     option.value = teacher.name;
                     option.textContent = `⛔ ${teacher.name} (MAXED OUT - 5/5h)`;
                     option.disabled = true;
-                    option.style.color = "#dc3545"; // Red for maxed out
+                    option.style.color = "#dc3545";
                     option.style.textDecoration = "line-through";
                     subjectSelect.appendChild(option);
                 });
             }
 
-            // Set current value after a small delay to ensure options are populated
+            // Set current value
             setTimeout(() => {
                 if (currentCell) {
                     const day = currentCell.data('day');
@@ -201,6 +193,19 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error fetching teachers for edit modal:', error);
         });
     }
+
+    // Navigation handlers
+    homeLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        homeSection.style.display = 'block';
+        timetableSection.style.display = 'none';
+    });
+
+    timetableLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        showTimetableSection();
+    });
+
     function showTimetableSection() {
         fetch('/get-timetable')
             .then(response => response.json())
@@ -221,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 🎯 Generate Timetable
                             </button>
                             <p style="font-size: 14px; color: #666; margin-top: 15px;">
-                                <strong>Requirements:</strong> Languages A/B (6h each), Sciences A/B (6h each), Arts Teacher (5h), Sports Teacher (5h)
+                                <strong>Requirements:</strong> Languages A/B (5h each), Sciences A/B (5h each), Arts Teacher (5h), Sports Teacher (5h)
                             </p>
                         </div>
                     `;
@@ -230,10 +235,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 homeSection.style.display = 'none';
                 timetableSection.style.display = 'block';
                 
-                // Update available teachers when showing timetable
                 updateAvailableTeachers();
                 
-                // Show success message if any
                 if (data.message) {
                     showMessage(data.message, 'success');
                 }
@@ -244,29 +247,21 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    let currentCell;
-
-    // Edit modal handler - UPDATED with teacher names
+    // Edit modal handler
     $('#editModal').on('show.bs.modal', function (event) {
         const button = $(event.relatedTarget);
         currentCell = button.closest('td');
         const teacherText = currentCell.find('.subjects').text().trim();
         const modal = $(this);
         
-        // Clear previous error messages
         modal.find('#modal-error-message').hide();
-        
-        // Update available teachers before showing modal
         updateAvailableTeachers();
         
-        // Extract teacher name from cell
         let currentTeacher = '';
         if (teacherText !== '-' && teacherText !== '') {
-            // Extract from badge text
             currentTeacher = teacherText.replace(/<\/?[^>]+(>|$)/g, "").trim();
         }
         
-        // Find which subject this teacher belongs to
         let subjectCategory = '';
         subjectsData.forEach(subject => {
             if (subject.teacherNames?.includes(currentTeacher)) {
@@ -279,13 +274,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         modal.find('#current-subjects-with-category').text(teacherWithCategory);
         
-        // Set the current value after a small delay to ensure options are populated
         setTimeout(() => {
             modal.find('#subject-select').val(currentTeacher);
         }, 100);
     });
 
-    // Save changes handler - UPDATED for teachers
+    // Save changes handler
     document.getElementById('save-changes').addEventListener('click', () => {
         const selectedTeacher = $('#subject-select').val() || '';
         
@@ -299,19 +293,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log('Saving changes for:', day, slot, selectedTeacher);
 
-        // Check if selected teacher is available
+        // Check if teacher can be added (including deleted teachers)
         if (selectedTeacher && selectedTeacher !== '') {
-            const isAvailable = availableTeachers.some(t => t.name === selectedTeacher);
-            if (!isAvailable) {
-                showMessage(`❌ Cannot add ${selectedTeacher} - weekly hour limit reached!`, 'error');
-                return;
+            // Check if it's a deleted teacher (they can always be added back if they have hours left)
+            const isDeletedTeacher = selectedTeacher.startsWith('↩️') || 
+                                   (selectedTeacher.includes('Languages') || selectedTeacher.includes('Sciences') || 
+                                    selectedTeacher.includes('Arts') || selectedTeacher.includes('Sports'));
+            
+            if (!isDeletedTeacher) {
+                // For regular teachers, check availability
+                const isAvailable = availableTeachers.some(t => t.name === selectedTeacher);
+                if (!isAvailable) {
+                    showMessage(`❌ Cannot add ${selectedTeacher} - weekly hour limit reached!`, 'error');
+                    return;
+                }
             }
         }
 
-        // Create a deep copy to avoid reference issues
         const updatedTimetable = JSON.parse(JSON.stringify(currentTimetable));
         
-        // Ensure the structure exists
         if (!updatedTimetable[day]) {
             updatedTimetable[day] = [];
         }
@@ -319,7 +319,6 @@ document.addEventListener('DOMContentLoaded', () => {
             updatedTimetable[day][slot] = null;
         }
         
-        // Store teacher name (e.g., "Languages A")
         updatedTimetable[day][slot] = selectedTeacher || null;
 
         const saveButton = document.getElementById('save-changes');
@@ -352,7 +351,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.message) {
                 showMessage(data.message, 'success');
             }
-            // Update available teachers after saving
             updateAvailableTeachers();
         })
         .catch(error => {
@@ -405,7 +403,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.message) {
                     showMessage(data.message, 'success');
                 }
-                // Update available teachers after saving
                 updateAvailableTeachers();
             })
             .catch(error => {
@@ -467,11 +464,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 timetableContainer.innerHTML = data.timetableHtml;
 
-                // Switch to the timetable view
                 homeSection.style.display = 'none';
                 timetableSection.style.display = 'block';
                 
-                // Update available teachers after generation
                 updateAvailableTeachers();
                 
                 if (data.message) {
@@ -492,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Delete slot handler - UPDATED for teachers
+    // Delete slot handler
     document.addEventListener('click', function(e) {
         const deleteBtn = e.target.closest('.delete-btn');
         if (deleteBtn) {
@@ -505,7 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             console.log('Deleting slot - Day:', day, 'Slot:', slot);
 
-            // Show loading state on the button
             const originalHtml = deleteBtn.innerHTML;
             deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             deleteBtn.disabled = true;
@@ -535,7 +529,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.message) {
                     showMessage(data.message, 'success');
                 }
-                // Update available teachers after deletion
                 updateAvailableTeachers();
             })
             .catch(error => {
@@ -554,11 +547,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const editBtn = e.target.closest('.edit-btn');
         if (editBtn) {
             console.log('Edit button clicked');
-            // Bootstrap modal will handle the rest via data-target
         }
     });
 
-    // Make generateTimetable function globally available for the "No timetable" button
+    // Make generateTimetable function globally available
     window.generateTimetable = function() {
         document.getElementById('generate-timetable-form').dispatchEvent(new Event('submit'));
     };
