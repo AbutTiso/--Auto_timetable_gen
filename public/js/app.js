@@ -86,52 +86,121 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // UPDATED: Function to update edit modal with available teachers
+        // UPDATED: Function to update edit modal with available teachers AND deleted teachers
     function updateEditModalOptions() {
         const subjectSelect = document.getElementById('subject-select');
         if (!subjectSelect) return;
 
-        // Clear existing options except the first one
-        while (subjectSelect.options.length > 1) {
-            subjectSelect.remove(1);
-        }
+        fetch('/get-available-teachers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ timetable: currentTimetable })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Clear existing options except the first one
+            while (subjectSelect.options.length > 1) {
+                subjectSelect.remove(1);
+            }
 
-        // Add available teachers with remaining hours information
-        availableTeachers.forEach(teacher => {
-            const option = document.createElement('option');
-            option.value = teacher.name; // e.g., "Languages A"
-            option.textContent = `${teacher.name} (${teacher.currentHours}/${teacher.maxHours} hours - ${teacher.remainingHours}h left)`;
-            option.disabled = teacher.remainingHours <= 0;
-            subjectSelect.appendChild(option);
-        });
+            // Add empty slot option
+            const emptyOption = document.createElement('option');
+            emptyOption.value = "";
+            emptyOption.textContent = "-- Empty slot (no lesson) --";
+            emptyOption.className = "text-muted";
+            subjectSelect.appendChild(emptyOption);
 
-        // Also add all teachers but mark unavailable ones as disabled
-        subjectsData.forEach(subject => {
-            subject.teacherNames?.forEach(teacherName => {
-                const isAvailable = availableTeachers.some(t => t.name === teacherName);
-                if (!isAvailable) {
-                    const maxHours = teacherName.includes('Languages') || teacherName.includes('Sciences') ? 6 : 5;
+            // Add separator for available teachers
+            if (data.availableTeachers && data.availableTeachers.length > 0) {
+                const availableHeader = document.createElement('option');
+                availableHeader.disabled = true;
+                availableHeader.textContent = "───── Available Teachers ─────";
+                availableHeader.className = "font-weight-bold text-primary";
+                subjectSelect.appendChild(availableHeader);
+
+                // Add available teachers
+                data.availableTeachers.forEach(teacher => {
                     const option = document.createElement('option');
-                    option.value = teacherName;
-                    option.textContent = `${teacherName} (MAXED OUT - ${maxHours}/${maxHours} hours)`;
-                    option.disabled = true;
+                    option.value = teacher.name;
+                    option.textContent = `${teacher.name} (${teacher.currentHours}/${teacher.maxHours}h - ${teacher.remainingHours}h left)`;
+                    option.style.color = "#28a745"; // Green for available
                     subjectSelect.appendChild(option);
-                }
+                });
+            }
+
+            // Add separator for recently deleted teachers
+            if (data.deletedTeachers && data.deletedTeachers.length > 0) {
+                const deletedHeader = document.createElement('option');
+                deletedHeader.disabled = true;
+                deletedHeader.textContent = "───── Recently Deleted ─────";
+                deletedHeader.className = "font-weight-bold text-warning";
+                subjectSelect.appendChild(deletedHeader);
+
+                // Add deleted teachers (can be added back)
+                data.deletedTeachers.forEach(teacher => {
+                    const option = document.createElement('option');
+                    option.value = teacher.name;
+                    option.textContent = `↩️ ${teacher.name} (was deleted - ${teacher.currentHours}/${teacher.maxHours}h)`;
+                    option.style.color = "#ff9800"; // Orange for deleted
+                    option.style.fontStyle = "italic";
+                    subjectSelect.appendChild(option);
+                });
+            }
+
+            // Add separator for unavailable teachers (maxed out)
+            // Get all teacher names that are available or deleted
+            const allAvailableNames = [];
+            if (data.availableTeachers) allAvailableNames.push(...data.availableTeachers.map(t => t.name));
+            if (data.deletedTeachers) allAvailableNames.push(...data.deletedTeachers.map(t => t.name));
+            
+            // Find teachers that are maxed out (not in available or deleted lists)
+            const maxedOutTeachers = [];
+            subjectsData.forEach(subject => {
+                subject.teacherNames?.forEach(teacherName => {
+                    if (!allAvailableNames.includes(teacherName)) {
+                        maxedOutTeachers.push({
+                            name: teacherName,
+                            maxHours: 5 // All teachers max at 5 hours now
+                        });
+                    }
+                });
             });
+
+            if (maxedOutTeachers.length > 0) {
+                const unavailableHeader = document.createElement('option');
+                unavailableHeader.disabled = true;
+                unavailableHeader.textContent = "───── Unavailable (Maxed Out) ─────";
+                unavailableHeader.className = "font-weight-bold text-secondary";
+                subjectSelect.appendChild(unavailableHeader);
+
+                // Show maxed out teachers
+                maxedOutTeachers.forEach(teacher => {
+                    const option = document.createElement('option');
+                    option.value = teacher.name;
+                    option.textContent = `⛔ ${teacher.name} (MAXED OUT - 5/5h)`;
+                    option.disabled = true;
+                    option.style.color = "#dc3545"; // Red for maxed out
+                    option.style.textDecoration = "line-through";
+                    subjectSelect.appendChild(option);
+                });
+            }
+
+            // Set current value after a small delay to ensure options are populated
+            setTimeout(() => {
+                if (currentCell) {
+                    const day = currentCell.data('day');
+                    const slot = currentCell.closest('tr').data('slot');
+                    const currentTeacher = currentTimetable[day] && currentTimetable[day][slot] ? currentTimetable[day][slot] : '';
+                    subjectSelect.value = currentTeacher;
+                }
+            }, 100);
+        })
+        .catch(error => {
+            console.error('Error fetching teachers for edit modal:', error);
         });
     }
-
-    // Navigation handlers
-    homeLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        homeSection.style.display = 'block';
-        timetableSection.style.display = 'none';
-    });
-
-    timetableLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showTimetableSection();
-    });
-
     function showTimetableSection() {
         fetch('/get-timetable')
             .then(response => response.json())
