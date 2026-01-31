@@ -9,8 +9,8 @@ const ejs = require('ejs');
 // ============================================
 const defaultData = {
   "subjects": [
-    { "name": "Languages", "hours": 10, "teachers": 2, "category": "Languages", "teacherNames": ["Lang Teacher A", "Lang Teacher B"] },
-    { "name": "Sciences", "hours": 10, "teachers": 2, "category": "Sciences", "teacherNames": ["Sci Teacher A", "Sci Teacher B"] },
+    { "name": "Languages", "hours": 10, "teachers": 2, "category": "Languages", "teacherNames": ["Languages A", "Languages B"] },
+    { "name": "Sciences", "hours": 10, "teachers": 2, "category": "Sciences", "teacherNames": ["Sciences A", "Sciences B"] },
     { "name": "Arts", "hours": 5, "teachers": 1, "category": "Arts", "teacherNames": ["Arts Teacher"] },
     { "name": "Sports", "hours": 5, "teachers": 1, "category": "Sports", "teacherNames": ["Sports Teacher"] }
   ],
@@ -80,19 +80,19 @@ app.post('/generate-timetable', (req, res) => {
             }));
         });
 
-        // Subject requirements with teacher assignment
+        // Subject requirements with A/B teacher naming
         const subjectRequirements = [
             { 
                 name: 'Languages', 
                 hours: 10, 
                 teachers: 2,
-                teacherNames: ['Lang Teacher A', 'Lang Teacher B']
+                teacherNames: ['Languages A', 'Languages B']
             },
             { 
                 name: 'Sciences', 
                 hours: 10, 
                 teachers: 2,
-                teacherNames: ['Sci Teacher A', 'Sci Teacher B']
+                teacherNames: ['Sciences A', 'Sciences B']
             },
             { 
                 name: 'Arts', 
@@ -114,15 +114,23 @@ app.post('/generate-timetable', (req, res) => {
         let allSubjectInstances = [];
         subjectRequirements.forEach(subject => {
             const teachers = subject.teacherNames;
+            
+            // Distribute hours fairly between teachers
             const hoursPerTeacher = Math.ceil(subject.hours / subject.teachers);
             
-            for (let i = 0; i < subject.hours; i++) {
-                // Assign teacher based on round-robin distribution
-                const teacherIndex = i % subject.teachers;
-                allSubjectInstances.push({
-                    subject: subject.name,
-                    teacher: teachers[teacherIndex]
-                });
+            for (let teacherIndex = 0; teacherIndex < subject.teachers; teacherIndex++) {
+                const teacher = teachers[teacherIndex];
+                // Calculate hours for this teacher (last teacher might get fewer hours)
+                const hoursForThisTeacher = (teacherIndex === subject.teachers - 1) 
+                    ? subject.hours - (hoursPerTeacher * (subject.teachers - 1))
+                    : hoursPerTeacher;
+                
+                for (let i = 0; i < hoursForThisTeacher; i++) {
+                    allSubjectInstances.push({
+                        subject: subject.name,
+                        teacher: teacher // This will be "Languages A", "Sciences B", etc.
+                    });
+                }
             }
         });
 
@@ -152,20 +160,23 @@ app.post('/generate-timetable', (req, res) => {
         // Shuffle slots for random assignment
         allSlots = shuffleArray(allSlots);
 
-        // Track assigned hours per subject
+        // Track assigned hours per teacher
         const assignedHours = {
-            'Languages': { total: 0, teachers: {} },
-            'Sciences': { total: 0, teachers: {} },
-            'Arts': { total: 0, teachers: {} },
-            'Sports': { total: 0, teachers: {} }
+            'Languages A': 0,
+            'Languages B': 0,
+            'Sciences A': 0,
+            'Sciences B': 0,
+            'Arts Teacher': 0,
+            'Sports Teacher': 0
         };
 
-        // Initialize teacher hours tracking
-        subjectRequirements.forEach(subject => {
-            subject.teacherNames.forEach(teacher => {
-                assignedHours[subject.name].teachers[teacher] = 0;
-            });
-        });
+        // Track total hours per subject category
+        const subjectCategoryHours = {
+            'Languages': 0,
+            'Sciences': 0,
+            'Arts': 0,
+            'Sports': 0
+        };
 
         // Assign subjects with teacher consideration
         function assignSubjectsWithTeachers() {
@@ -176,6 +187,9 @@ app.post('/generate-timetable', (req, res) => {
             while (unassignedInstances.length > 0 && attempts < maxAttempts) {
                 attempts++;
                 const instance = unassignedInstances[0];
+                const subjectCategory = instance.teacher.includes('Languages') ? 'Languages' : 
+                                      instance.teacher.includes('Sciences') ? 'Sciences' :
+                                      instance.teacher.includes('Arts') ? 'Arts' : 'Sports';
                 
                 // Try to find an empty slot
                 let placed = false;
@@ -184,29 +198,30 @@ app.post('/generate-timetable', (req, res) => {
                     
                     // Check if slot is empty
                     if (timetable[day][hour].subject === null) {
-                        const subjectReq = subjectRequirements.find(s => s.name === instance.subject);
-                        
                         // Check if teacher is available at this time
                         if (!teacherSchedule[instance.teacher][day][hour]) {
-                            // Check if we haven't exceeded subject hours
-                            if (assignedHours[instance.subject].total < subjectReq.hours) {
-                                // Check if teacher hasn't exceeded their fair share
-                                const maxHoursPerTeacher = Math.ceil(subjectReq.hours / subjectReq.teachers);
-                                if (assignedHours[instance.subject].teachers[instance.teacher] < maxHoursPerTeacher) {
+                            // Check subject category limit (10h for Languages/Sciences, 5h for Arts/Sports)
+                            const maxCategoryHours = subjectCategory === 'Languages' || subjectCategory === 'Sciences' ? 10 : 5;
+                            
+                            if (subjectCategoryHours[subjectCategory] < maxCategoryHours) {
+                                // Check individual teacher limit (max 5-6 hours each for Languages/Sciences teachers)
+                                const maxTeacherHours = subjectCategory === 'Languages' || subjectCategory === 'Sciences' ? 6 : 5;
+                                
+                                if (assignedHours[instance.teacher] < maxTeacherHours) {
                                     
                                     // Place the subject with teacher
                                     timetable[day][hour].subject = instance.subject;
                                     timetable[day][hour].teacher = instance.teacher;
                                     
                                     // Update tracking
-                                    assignedHours[instance.subject].total++;
-                                    assignedHours[instance.subject].teachers[instance.teacher]++;
+                                    assignedHours[instance.teacher]++;
+                                    subjectCategoryHours[subjectCategory]++;
                                     teacherSchedule[instance.teacher][day][hour] = true;
                                     
                                     // Remove from unassigned
                                     unassignedInstances.shift();
                                     placed = true;
-                                    console.log(`Assigned ${instance.subject} (${instance.teacher}) to ${day} slot ${hour}`);
+                                    console.log(`Assigned ${instance.teacher} to ${day} slot ${hour}`);
                                     break;
                                 }
                             }
@@ -246,17 +261,18 @@ app.post('/generate-timetable', (req, res) => {
         }
 
         console.log('Final assigned hours:', assignedHours);
+        console.log('Subject category hours:', subjectCategoryHours);
 
-        // Simplify timetable for frontend display (convert to string format)
-        let simplifiedTimetable = {};
+        // Create display format: Use teacher name directly (e.g., "Languages A", "Sciences B")
+        let displayTimetable = {};
         days.forEach(day => {
-            simplifiedTimetable[day] = timetable[day].map(slot => 
-                slot.subject ? `${slot.subject} (${slot.teacher})` : null
+            displayTimetable[day] = timetable[day].map(slot => 
+                slot.teacher || null
             );
         });
 
         // Validate the generated timetable
-        const validation = validateTimetable(simplifiedTimetable, jsonData.subjects);
+        const validation = validateTimetable(displayTimetable, jsonData.subjects);
         if (!validation.valid) {
             console.warn('Validation issues:', validation.errors);
         } else {
@@ -264,7 +280,7 @@ app.post('/generate-timetable', (req, res) => {
         }
 
         // Update the data
-        jsonData.timetable = simplifiedTimetable;
+        jsonData.timetable = displayTimetable;
 
         // Write back to file
         fs.writeFile('data.json', JSON.stringify(jsonData, null, 4), async (err) => {
@@ -280,7 +296,7 @@ app.post('/generate-timetable', (req, res) => {
                 res.json({ 
                     timetable: jsonData.timetable, 
                     timetableHtml: '<h2>Generated Timetable</h2>' + timetableHtml,
-                    message: '✅ New timetable generated! Each session has one lesson with teacher assignments.'
+                    message: '✅ New timetable generated! Showing teacher assignments (A/B).'
                 });
             } catch (renderError) {
                 console.error('Error rendering timetable:', renderError);
@@ -295,11 +311,7 @@ function validateTimetable(timetable, subjects) {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
     const result = { valid: true, errors: [], warnings: [] };
     
-    // Track weekly hours per subject
-    const weeklyHours = {};
-    subjects.forEach(s => weeklyHours[s.name] = 0);
-
-    // Track teacher hours
+    // Track weekly hours per teacher
     const teacherHours = {};
     subjects.forEach(subject => {
         subject.teacherNames?.forEach(teacher => {
@@ -312,25 +324,12 @@ function validateTimetable(timetable, subjects) {
         let dailyHours = 0;
         
         for (let hour = 0; hour < 6; hour++) {
-            const slotValue = timetable[day] && timetable[day][hour] ? timetable[day][hour] : null;
+            const teacher = timetable[day] && timetable[day][hour] ? timetable[day][hour] : null;
             
-            // Count if slot has a subject
-            if (slotValue && slotValue !== null) {
+            // Count if slot has a teacher
+            if (teacher && teacher !== null) {
                 dailyHours++;
-                
-                // Extract subject name (remove teacher in parentheses)
-                const subjectMatch = slotValue.match(/^([^(]+)/);
-                if (subjectMatch) {
-                    const subjectName = subjectMatch[0].trim();
-                    weeklyHours[subjectName] = (weeklyHours[subjectName] || 0) + 1;
-                }
-                
-                // Extract teacher name
-                const teacherMatch = slotValue.match(/\(([^)]+)\)/);
-                if (teacherMatch) {
-                    const teacherName = teacherMatch[1].trim();
-                    teacherHours[teacherName] = (teacherHours[teacherName] || 0) + 1;
-                }
+                teacherHours[teacher] = (teacherHours[teacher] || 0) + 1;
             }
         }
 
@@ -341,66 +340,76 @@ function validateTimetable(timetable, subjects) {
         }
     }
 
-    // Check subject hour limits
-    for (const subject of subjects) {
-        if (weeklyHours[subject.name] > subject.hours) {
+    // Check teacher hour limits based on their subject
+    for (const teacher in teacherHours) {
+        let maxHours = 0;
+        
+        if (teacher.includes('Languages') || teacher.includes('Sciences')) {
+            maxHours = 6; // Each Languages/Sciences teacher gets max 6 hours
+        } else {
+            maxHours = 5; // Arts/Sports teachers get 5 hours
+        }
+        
+        if (teacherHours[teacher] > maxHours) {
             result.valid = false;
-            result.errors.push(`${subject.name} exceeds weekly limit: ${weeklyHours[subject.name]} hours instead of ${subject.hours}`);
-        } else if (weeklyHours[subject.name] < subject.hours) {
-            result.warnings.push(`${subject.name} has ${weeklyHours[subject.name]}/${subject.hours} hours - you can add more ${subject.name} lessons`);
+            result.errors.push(`${teacher} exceeds limit: ${teacherHours[teacher]} hours instead of ${maxHours}`);
+        } else if (teacherHours[teacher] < maxHours) {
+            result.warnings.push(`${teacher} has ${teacherHours[teacher]}/${maxHours} hours`);
         }
     }
 
     return result;
 }
 
-// NEW: Function to get available subjects for editing
-function getAvailableSubjects(timetable, subjects) {
-    const weeklyHours = calculateWeeklyHours(timetable);
-    const availableSubjects = [];
+// NEW: Function to get available teachers for editing
+function getAvailableTeachers(timetable, subjects) {
+    const teacherHours = calculateTeacherHours(timetable);
+    const availableTeachers = [];
     
     subjects.forEach(subject => {
-        const currentHours = weeklyHours[subject.name] || 0;
-        const remainingHours = subject.hours - currentHours;
-        
-        if (remainingHours > 0) {
-            // For each teacher in the subject
-            subject.teacherNames?.forEach(teacher => {
-                availableSubjects.push({
-                    name: subject.name,
-                    teacher: teacher,
+        subject.teacherNames?.forEach(teacher => {
+            const currentHours = teacherHours[teacher] || 0;
+            let maxHours = 0;
+            
+            // Determine max hours based on teacher type
+            if (teacher.includes('Languages') || teacher.includes('Sciences')) {
+                maxHours = 6; // Each gets max 6 hours
+            } else {
+                maxHours = 5; // Arts/Sports get 5 hours
+            }
+            
+            const remainingHours = maxHours - currentHours;
+            
+            if (remainingHours > 0) {
+                availableTeachers.push({
+                    name: teacher,
                     currentHours: currentHours,
-                    maxHours: subject.hours,
+                    maxHours: maxHours,
                     remainingHours: remainingHours,
-                    teachers: subject.teachers
+                    subject: subject.name
                 });
-            });
-        }
+            }
+        });
     });
     
-    return availableSubjects;
+    return availableTeachers;
 }
 
-// Helper function to calculate current weekly hours
-function calculateWeeklyHours(timetable) {
+// Helper function to calculate current teacher hours
+function calculateTeacherHours(timetable) {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const weeklyHours = {};
+    const teacherHours = {};
     
     for (const day of days) {
         for (let hour = 0; hour < 6; hour++) {
-            const slotValue = timetable[day] && timetable[day][hour] ? timetable[day][hour] : null;
-            if (slotValue && slotValue !== null) {
-                // Extract subject name (remove teacher in parentheses)
-                const subjectMatch = slotValue.match(/^([^(]+)/);
-                if (subjectMatch) {
-                    const subjectName = subjectMatch[0].trim();
-                    weeklyHours[subjectName] = (weeklyHours[subjectName] || 0) + 1;
-                }
+            const teacher = timetable[day] && timetable[day][hour] ? timetable[day][hour] : null;
+            if (teacher && teacher !== null) {
+                teacherHours[teacher] = (teacherHours[teacher] || 0) + 1;
             }
         }
     }
     
-    return weeklyHours;
+    return teacherHours;
 }
 
 app.post('/save-timetable', (req, res) => {
@@ -430,12 +439,12 @@ app.post('/save-timetable', (req, res) => {
                 return res.status(500).send('Error saving data file');
             }
             
-            // Calculate available subjects for the response
-            const availableSubjects = getAvailableSubjects(newTimetable, subjects);
+            // Calculate available teachers for the response
+            const availableTeachers = getAvailableTeachers(newTimetable, subjects);
             let availableMessage = '';
-            if (availableSubjects.length > 0) {
-                availableMessage = ' Available: ' + availableSubjects.map(s => 
-                    `${s.name} (${s.teacher})`
+            if (availableTeachers.length > 0) {
+                availableMessage = ' Available: ' + availableTeachers.map(t => 
+                    `${t.name} (${t.remainingHours}h left)`
                 ).join(', ');
             }
             
@@ -444,7 +453,7 @@ app.post('/save-timetable', (req, res) => {
                 timetable: jsonData.timetable, 
                 timetableHtml: '<h2>Generated Timetable</h2>' + timetableHtml,
                 message: '✅ Timetable saved successfully!' + availableMessage,
-                availableSubjects: availableSubjects
+                availableTeachers: availableTeachers
             });
         });
     });
@@ -464,16 +473,16 @@ app.post('/delete-slot', (req, res) => {
 
         // Ensure the structure exists before deleting
         if (jsonData.timetable && jsonData.timetable[day] && jsonData.timetable[day][slot] !== undefined) {
-            const deletedSubject = jsonData.timetable[day][slot];
+            const deletedTeacher = jsonData.timetable[day][slot];
             jsonData.timetable[day][slot] = null;
-            console.log(`Cleared slot ${slot} on ${day}, deleted: ${deletedSubject}`);
+            console.log(`Cleared slot ${slot} on ${day}, deleted: ${deletedTeacher}`);
             
-            // Calculate available subjects after deletion
-            const availableSubjects = getAvailableSubjects(jsonData.timetable, jsonData.subjects);
+            // Calculate available teachers after deletion
+            const availableTeachers = getAvailableTeachers(jsonData.timetable, jsonData.subjects);
             let availableMessage = '';
-            if (availableSubjects.length > 0) {
-                availableMessage = ' You can now add: ' + availableSubjects.map(s => 
-                    `${s.name} (${s.teacher})`
+            if (availableTeachers.length > 0) {
+                availableMessage = ' You can now add: ' + availableTeachers.map(t => 
+                    `${t.name} (${t.remainingHours}h left)`
                 ).join(', ');
             }
             
@@ -487,7 +496,7 @@ app.post('/delete-slot', (req, res) => {
                     timetable: jsonData.timetable, 
                     timetableHtml: '<h2>Generated Timetable</h2>' + timetableHtml,
                     message: '✅ Slot cleared successfully!' + availableMessage,
-                    availableSubjects: availableSubjects
+                    availableTeachers: availableTeachers
                 });
             });
         } else {
@@ -497,8 +506,8 @@ app.post('/delete-slot', (req, res) => {
     });
 });
 
-// NEW: Endpoint to get available subjects for a timetable
-app.post('/get-available-subjects', (req, res) => {
+// NEW: Endpoint to get available teachers for a timetable
+app.post('/get-available-teachers', (req, res) => {
     const { timetable } = req.body;
     
     fs.readFile('data.json', 'utf8', (err, data) => {
@@ -510,8 +519,8 @@ app.post('/get-available-subjects', (req, res) => {
         const jsonData = JSON.parse(data);
         const subjects = jsonData.subjects;
         
-        const availableSubjects = getAvailableSubjects(timetable || jsonData.timetable, subjects);
-        res.json({ availableSubjects });
+        const availableTeachers = getAvailableTeachers(timetable || jsonData.timetable, subjects);
+        res.json({ availableTeachers });
     });
 });
 
