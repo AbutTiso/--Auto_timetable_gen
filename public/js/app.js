@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', () => {
     const homeLink = document.getElementById('home-link');
     const timetableLink = document.getElementById('timetable-link');
@@ -84,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // FIXED: Update edit modal with ONLY deleted teachers
+    // FIXED: Update edit modal with ONLY deleted teachers (in the same dropdown)
     function updateEditModalOptions() {
         const subjectSelect = document.getElementById('subject-select');
         if (!subjectSelect) return;
@@ -110,18 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
             emptyOption.className = "text-muted";
             subjectSelect.appendChild(emptyOption);
 
-            let hasOptions = false;
-
-            // ONLY SHOW RECENTLY DELETED TEACHERS
+            // Add ONLY deleted teachers directly after empty slot option
             if (data.deletedTeachers && data.deletedTeachers.length > 0) {
-                hasOptions = true;
-                const deletedHeader = document.createElement('option');
-                deletedHeader.disabled = true;
-                deletedHeader.textContent = "───── Recently Deleted Teachers ─────";
-                deletedHeader.className = "font-weight-bold text-warning";
-                deletedHeader.style.backgroundColor = "#fff3cd";
-                subjectSelect.appendChild(deletedHeader);
-
                 data.deletedTeachers.forEach(teacher => {
                     const option = document.createElement('option');
                     option.value = teacher.name;
@@ -131,15 +122,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     option.style.fontStyle = "italic";
                     subjectSelect.appendChild(option);
                 });
-            }
-
-            // If no deleted teachers available
-            if (!hasOptions) {
-                const noOptions = document.createElement('option');
-                noOptions.disabled = true;
-                noOptions.textContent = "No deleted teachers available";
-                noOptions.className = "text-muted font-italic";
-                subjectSelect.appendChild(noOptions);
+            } else {
+                // If no deleted teachers available
+                const noDeletedOption = document.createElement('option');
+                noDeletedOption.value = "";
+                noDeletedOption.textContent = "No deleted teachers available";
+                noDeletedOption.disabled = true;
+                noDeletedOption.classList.add("text-muted", "font-italic");
+                subjectSelect.appendChild(noDeletedOption);
             }
 
             // Set current value
