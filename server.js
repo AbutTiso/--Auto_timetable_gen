@@ -285,14 +285,27 @@ function validateTimetable(timetable, subjects) {
     return result;
 }
 
-// Function to get available teachers INCLUDING deleted ones
+// FIXED: Function to get available teachers (NON-DELETED ones only)
 function getAvailableTeachers(timetable, subjects, deletedLessons = []) {
     const teacherHours = calculateTeacherHours(timetable);
     const categoryHours = calculateCategoryHours(timetable, subjects);
     const availableTeachers = [];
     
+    // Get all deleted teacher names
+    const deletedTeacherNames = deletedLessons
+        .filter(lesson => lesson.teacher && lesson.teacher.trim() !== '')
+        .map(lesson => lesson.teacher);
+    
+    console.log('Deleted teacher names to exclude:', deletedTeacherNames);
+    
     subjects.forEach(subject => {
         subject.teacherNames?.forEach(teacher => {
+            // Skip if this teacher is in deleted lessons
+            if (deletedTeacherNames.includes(teacher)) {
+                console.log(`Skipping ${teacher} - it's in deleted lessons`);
+                return;
+            }
+            
             const currentHours = teacherHours[teacher] || 0;
             let maxHoursPerTeacher = 0;
             let maxCategoryHours = 0;
@@ -310,27 +323,26 @@ function getAvailableTeachers(timetable, subjects, deletedLessons = []) {
             const remainingCategoryHours = maxCategoryHours - currentCategoryHours;
             const remainingTeacherHours = maxHoursPerTeacher - currentHours;
             
+            console.log(`Checking ${teacher}: currentHours=${currentHours}, max=${maxHoursPerTeacher}, remainingTeacherHours=${remainingTeacherHours}, remainingCategoryHours=${remainingCategoryHours}`);
+            
             // Teacher can be added if:
             // 1. Teacher hasn't reached their individual limit (5 hours)
             // 2. Subject category hasn't reached its total limit (10 or 5 hours)
             if (remainingTeacherHours > 0 && remainingCategoryHours > 0) {
-                // Check if this teacher is in deleted lessons
-                const isDeleted = deletedLessons.some(lesson => lesson.teacher === teacher);
-                if (!isDeleted) {
-                    availableTeachers.push({
-                        name: teacher,
-                        currentHours: currentHours,
-                        maxHours: maxHoursPerTeacher,
-                        remainingHours: Math.min(remainingTeacherHours, remainingCategoryHours),
-                        subject: subject.name,
-                        type: 'available',
-                        categoryRemaining: remainingCategoryHours
-                    });
-                }
+                availableTeachers.push({
+                    name: teacher,
+                    currentHours: currentHours,
+                    maxHours: maxHoursPerTeacher,
+                    remainingHours: Math.min(remainingTeacherHours, remainingCategoryHours),
+                    subject: subject.name,
+                    type: 'available',
+                    categoryRemaining: remainingCategoryHours
+                });
             }
         });
     });
     
+    console.log('Available teachers to return:', availableTeachers);
     return availableTeachers;
 }
 
