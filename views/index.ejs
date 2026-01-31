@@ -128,11 +128,11 @@
             <div class="form-group">
                 <label class="font-weight-bold">Select New Lesson</label>
                 <small class="form-text text-muted mb-2">
-                    <i class="fas fa-lightbulb"></i> Subjects show current/max hours. ↩️ indicates deleted lessons you can add back.
+                    <i class="fas fa-lightbulb"></i> Only deleted lessons appear here. Select one to add it back.
                 </small>
                 <select class="form-control" id="subject-select" size="6">
                     <option value="" class="text-muted">-- Empty slot (no lesson) --</option>
-                    <!-- Options will be populated dynamically by JavaScript -->
+                    <!-- ONLY DELETED LESSONS WILL APPEAR HERE -->
                 </select>
             </div>
             
@@ -225,13 +225,13 @@
             });
         });
 
-        // Edit modal functionality
+        // Edit modal functionality - ONLY SHOWS DELETED LESSONS
         let currentDay = '';
         let currentPeriod = '';
         let currentSubject = '';
         let deletedLessons = JSON.parse(localStorage.getItem('academiplan_deleted_lessons')) || [];
 
-        // Function to open edit modal - This should be called from timetablePartial.ejs
+        // Function to open edit modal
         window.openEditModal = function(day, period, subject) {
             currentDay = day;
             currentPeriod = period;
@@ -250,8 +250,8 @@
                 currentSubjectDisplay.textContent = 'Empty slot';
             }
             
-            // Populate subject dropdown with deleted lessons
-            populateSubjectDropdown(subject);
+            // Populate dropdown with ONLY deleted lessons
+            populateDeletedLessonsDropdown(subject);
             
             // Show modal
             $('#editModal').modal('show');
@@ -271,12 +271,12 @@
             return categoryMap[subject] || 'General';
         }
 
-        // Function to populate subject dropdown
-        function populateSubjectDropdown(currentSubjectName) {
+        // Function to populate dropdown with ONLY deleted lessons
+        function populateDeletedLessonsDropdown(currentSubjectName) {
             const select = document.getElementById('subject-select');
             select.innerHTML = '';
             
-            // Add empty slot option - THIS IS THE "DELETE" OPTION
+            // Always show empty slot option
             const emptyOption = document.createElement('option');
             emptyOption.value = '';
             emptyOption.textContent = '-- Empty slot (no lesson) --';
@@ -286,70 +286,10 @@
             }
             select.appendChild(emptyOption);
             
-            // Get all subjects from the page
-            const subjects = [];
-            document.querySelectorAll('#timetable-section ul li').forEach(li => {
-                const text = li.textContent;
-                const match = text.match(/(.+?) - (\d+) hours\/week, (\d+) teacher/);
-                if (match) {
-                    subjects.push({
-                        name: match[1].trim(),
-                        hours: parseInt(match[2]),
-                        teachers: parseInt(match[3])
-                    });
-                }
-            });
-            
-            // Calculate current hours for each subject from timetable
+            // Calculate current hours for each subject
             const subjectHours = calculateCurrentSubjectHours();
             
-            // Add regular subjects
-            subjects.forEach(subject => {
-                const subjectName = subject.name;
-                const category = getCategoryForSubject(subjectName);
-                const maxHours = getCategoryMaxHours(category);
-                const currentHours = subjectHours[subjectName] || 0;
-                const hoursLeft = maxHours - currentHours;
-                const isCurrentSubject = subjectName === currentSubjectName;
-                
-                // Only show if there are hours left OR it's the current subject
-                if (hoursLeft <= 0 && !isCurrentSubject) return;
-                
-                const option = document.createElement('option');
-                option.value = subjectName;
-                
-                let displayText = `${subjectName} [${category}] - ${currentHours}/${maxHours}h`;
-                
-                // Add hours status
-                if (hoursLeft > 0) {
-                    displayText += ` • ${hoursLeft}h left`;
-                } else {
-                    displayText += ' • ⛔ Maxed out';
-                }
-                
-                // Add current subject indicator
-                if (isCurrentSubject) {
-                    displayText += ' • 👈 Currently selected';
-                    option.selected = true;
-                }
-                
-                option.textContent = displayText;
-                
-                // Disable if no teachers available
-                option.disabled = subject.teachers <= 0;
-                
-                // Style the option
-                if (isCurrentSubject) {
-                    option.classList.add('font-weight-bold', 'bg-light');
-                }
-                if (option.disabled) {
-                    option.classList.add('text-muted');
-                }
-                
-                select.appendChild(option);
-            });
-            
-            // Add deleted lessons that are still available
+            // Add ONLY deleted lessons that still have hours available
             deletedLessons.forEach(deleted => {
                 const subjectName = deleted.subject;
                 const category = deleted.category || getCategoryForSubject(subjectName);
@@ -357,21 +297,33 @@
                 const currentHours = subjectHours[subjectName] || 0;
                 const hoursLeft = maxHours - currentHours;
                 
-                // Only show deleted lessons that still have hours available
+                // Only show if there are hours left
                 if (hoursLeft > 0) {
                     const option = document.createElement('option');
                     option.value = subjectName;
                     
-                    let displayText = `${subjectName} [${category}] - ${currentHours}/${maxHours}h`;
+                    // Display deleted lesson info
+                    let displayText = `${subjectName} [${category}]`;
+                    displayText += ` • ${currentHours}/${maxHours}h`;
                     displayText += ` • ${hoursLeft}h left`;
                     displayText += ' • ↩️ Recently deleted';
                     
                     option.textContent = displayText;
-                    option.classList.add('text-info', 'font-italic');
+                    option.classList.add('text-info');
                     
                     select.appendChild(option);
                 }
             });
+            
+            // If no deleted lessons available, show message
+            if (deletedLessons.length === 0 || select.options.length === 1) {
+                const noDeletedOption = document.createElement('option');
+                noDeletedOption.value = '';
+                noDeletedOption.textContent = 'No deleted lessons available';
+                noDeletedOption.disabled = true;
+                noDeletedOption.classList.add('text-muted', 'font-italic');
+                select.appendChild(noDeletedOption);
+            }
         }
 
         // Helper function to calculate current subject hours from timetable
@@ -405,49 +357,44 @@
         document.getElementById('save-changes').addEventListener('click', function() {
             const selectedSubject = document.getElementById('subject-select').value;
             
-            // Track deletion - when a subject is removed and empty slot is selected
+            // Track if a subject is being deleted (selecting empty slot)
             if (currentSubject && currentSubject !== 'EMPTY' && (!selectedSubject || selectedSubject === '')) {
                 const category = getCategoryForSubject(currentSubject);
                 
-                // Add to deleted lessons array
+                // Add to deleted lessons
                 deletedLessons.unshift({
                     subject: currentSubject,
                     category: category,
                     timestamp: new Date().getTime()
                 });
                 
-                // Keep only the 10 most recent deletions
+                // Keep only last 10 deleted lessons
                 if (deletedLessons.length > 10) {
                     deletedLessons.pop();
                 }
                 
-                // Save to localStorage
                 localStorage.setItem('academiplan_deleted_lessons', JSON.stringify(deletedLessons));
             }
             
-            // If selecting a previously deleted subject, remove it from the deleted list
+            // If restoring a deleted lesson, remove it from the list
             if (selectedSubject && selectedSubject !== '') {
-                const wasDeleted = deletedLessons.some(deleted => deleted.subject === selectedSubject);
-                if (wasDeleted) {
-                    deletedLessons = deletedLessons.filter(deleted => 
-                        deleted.subject !== selectedSubject
-                    );
-                    localStorage.setItem('academiplan_deleted_lessons', JSON.stringify(deletedLessons));
-                }
+                deletedLessons = deletedLessons.filter(deleted => 
+                    deleted.subject !== selectedSubject
+                );
+                localStorage.setItem('academiplan_deleted_lessons', JSON.stringify(deletedLessons));
             }
             
             // Send update to server
             updateTimetableSlot(currentDay, currentPeriod, selectedSubject);
         });
 
-        // Function to update timetable slot via AJAX
+        // Function to update timetable slot
         function updateTimetableSlot(day, period, subject) {
             const button = document.getElementById('save-changes');
             const originalText = button.innerHTML;
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
             button.disabled = true;
 
-            // Send the update to the server
             fetch('/update-slot', {
                 method: 'POST',
                 headers: {
@@ -462,11 +409,9 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Close modal and reload page to show changes
                     $('#editModal').modal('hide');
                     window.location.reload();
                 } else {
-                    // Show error message
                     const errorMessage = document.getElementById('modal-error-message');
                     errorMessage.textContent = data.error || 'Failed to update slot';
                     errorMessage.style.display = 'block';
