@@ -4,67 +4,31 @@
             "name": "Languages",
             "hours": 10,
             "teachers": 2,
-            "category": "Languages"
+            "category": "Languages",
+            "teacheNames":["Language A","Language B"]
         },
         {
             "name": "Sciences",
             "hours": 10,
             "teachers": 2,
-            "category": "Sciences"
+            "category": "Sciences",
+            "teacheNames":["Science A","Science B"]
         },
         {
             "name": "Arts",
             "hours": 5,
             "teachers": 1,
-            "category": "Arts"
+            "category": "Arts",
+            "teacheNames":["Arts Teacher"]
         },
         {
             "name": "Sports",
             "hours": 5,
             "teachers": 1,
-            "category": "Sports"
+            "category": "Sports",
+            "teacheNames":["Sports Teacher"]
         }
     ],
-    "timetable": {
-        "Monday": [
-            "Sciences",
-            "Arts",
-            "Arts",
-            "Sports",
-            "Sciences",
-            "Languages"
-        ],
-        "Tuesday": [
-            "Sciences",
-            "Languages",
-            "Sports",
-            "Languages",
-            "Sciences",
-            "Languages"
-        ],
-        "Wednesday": [
-            "Sciences",
-            "Sports",
-            "Sciences",
-            "Languages",
-            "Sciences",
-            "Languages"
-        ],
-        "Thursday": [
-            "Sciences",
-            "Languages",
-            "Arts",
-            "Languages",
-            "Sciences",
-            "Sports"
-        ],
-        "Friday": [
-            "Languages",
-            "Languages",
-            "Arts",
-            "Arts",
-            "Sciences",
-            "Sports"
-        ]
-    }
+    "timetable":null
+
 }
