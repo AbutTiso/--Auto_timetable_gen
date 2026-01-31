@@ -1,484 +1,212 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AcademiPlan</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>
+    // Navigation between sections
+    document.getElementById('home-link').addEventListener('click', function() {
+        document.getElementById('home-section').style.display = 'block';
+        document.getElementById('timetable-section').style.display = 'none';
+        document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+        this.classList.add('active');
+    });
 
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="/css/style.css">
-</head>
+    document.getElementById('timetable-link').addEventListener('click', function() {
+        document.getElementById('home-section').style.display = 'none';
+        document.getElementById('timetable-section').style.display = 'block';
+        document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+        this.classList.add('active');
+    });
 
-<body>
+    // Initialize with home active
+    document.getElementById('home-link').classList.add('active');
 
-    <!-- NAVBAR -->
-    <nav class="navbar navbar-expand-lg navbar-dark custom-navbar">
-        <a class="navbar-brand" href="/">
-            <img src="/images/logooo.png" alt="AcademiPlan Logo" class="logo">
-        </a>
+    // Timetable generation with AJAX
+    document.getElementById('generate-timetable-form')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const button = this.querySelector('button');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+        button.disabled = true;
 
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ml-auto">
-                <li class="nav-item"><a class="nav-link" id="home-link">Home</a></li>
-                <li class="nav-item"><a class="nav-link nav-btn" id="timetable-link">Timetable</a></li>
-            </ul>
-        </div>
-    </nav>
-
-    <!-- HOME SECTION -->
-    <div id="home-section" class="page-section">
-
-        <div class="hero-wrapper">
-            <div class="hero-section">
-                <img src="/images/img_hero.png" alt="Hero Image" class="hero-image">
-
-                <div class="hero-overlay">
-                    <h1>Crafting Brilliance, One Schedule at a Time.</h1>
-                    <p>Organize, balance, and optimize your school's academic week using smart planning.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- KEY FEATURES AREA -->
-        <div class="container mt-5">
-            <div class="row">
-
-                <div class="col-md-4 mb-4">
-                    <div class="feature">
-                        <h3>Automatic Timetable</h3>
-                        <p>Generate an optimized weekly timetable that respects all school constraints automatically.</p>
-                    </div>
-                </div>
-
-                <div class="col-md-4 mb-4">
-                    <div class="feature">
-                        <h3>Full Editing Control</h3>
-                        <p>Adjust sessions manually while keeping teacher limits and subject requirements consistent.</p>
-                    </div>
-                </div>
-
-                <div class="col-md-4 mb-4">
-                    <div class="feature">
-                        <h3>Simple & Intuitive</h3>
-                        <p>A clean and modern interface built for school administrators—fast, clear, and efficient.</p>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </div>
-
-    <!-- TIMETABLE SECTION -->
-    <div id="timetable-section" class="container page-section" style="display: none;">
-        <h1 class="my-4">Timetable</h1>
-
-        <h2>Subjects</h2>
-        <ul>
-            <% data.subjects.forEach(subject => { %>
-                <li><%= subject.name %> - <%= subject.hours %> hours/week, <%= subject.teachers %> teacher(s)</li>
-            <% }); %>
-        </ul>
-
-        <form action="/generate-timetable" method="POST" class="my-4" id="generate-timetable-form">
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-magic"></i> Generate Timetable
-            </button>
-        </form>
-
-        <div id="timetable-container">
-            <% if (data.timetable && Object.keys(data.timetable).length > 0) { %>
-                <h2>Generated Timetable</h2>
-                <%- include('timetablePartial', { data: data }) %>
-            <% } else { %>
-                <div class="alert alert-info">
-                    <p>No timetable generated yet. Click "Generate Timetable" to create one.</p>
-                </div>
-            <% } %>
-        </div>
-    </div>
-
-    <!-- ENHANCED EDIT MODAL -->
-    <div class="modal fade" id="editModal" tabindex="-1">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-
-          <div class="modal-header bg-primary text-white">
-            <h5 class="modal-title">
-                <i class="fas fa-edit"></i> Edit Lesson Slot
-            </h5>
-            <button type="button" class="close text-white" data-dismiss="modal">
-                <span>&times;</span>
-            </button>
-          </div>
-
-          <div class="modal-body">
-            <div id="modal-error-message" class="alert alert-danger" style="display: none;"></div>
-            
-            <div class="alert alert-info">
-              <strong><i class="fas fa-info-circle"></i> Current Lesson:</strong> 
-              <span id="current-subjects-with-category" class="font-weight-bold"></span>
-            </div>
-            
-            <div class="form-group">
-                <label class="font-weight-bold">Select New Lesson</label>
-                <small class="form-text text-muted mb-2">
-                    <i class="fas fa-lightbulb"></i> Only recently deleted teachers appear here. Select one to add it back.
-                </small>
-                <select class="form-control" id="subject-select" size="6">
-                    <option value="" class="text-muted">-- Empty slot (no lesson) --</option>
-                    <!-- ONLY DELETED TEACHERS WILL APPEAR HERE -->
-                </select>
-            </div>
-            
-            <div class="available-subjects-info mt-3 p-3 border rounded bg-light">
-                <small class="text-muted">
-                    <strong><i class="fas fa-chart-bar"></i> Weekly Limits:</strong> 
-                    Languages A/B (5h each) • Sciences A/B (5h each) • Arts Teacher (5h) • Sports Teacher (5h)
-                </small>
-                <br>
-                <small class="text-muted">
-                    <strong><i class="fas fa-users"></i> Teacher Limits:</strong> 
-                    Languages/Sciences Teachers (5h each) • Arts/Sports Teacher (5h each)
-                </small>
-            </div>
-          </div>
-
-          <div class="modal-footer">
-            <button class="btn btn-secondary" data-dismiss="modal">
-                <i class="fas fa-times"></i> Cancel
-            </button>
-            <button class="btn btn-primary" id="save-changes">
-                <i class="fas fa-save"></i> Save Changes
-            </button>
-          </div>
-
-        </div>
-      </div>
-    </div>
-
-    <!-- FOOTER -->
-    <footer class="footer mt-auto py-3 bg-light">
-        <div class="container text-center">
-            <span class="text-muted">© 2025 AcademiPlan. All rights reserved.</span>
-        </div>
-    </footer>
-
-    <!-- JavaScript -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Navigation between sections
-        document.getElementById('home-link').addEventListener('click', function() {
-            document.getElementById('home-section').style.display = 'block';
-            document.getElementById('timetable-section').style.display = 'none';
-            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-            this.classList.add('active');
+        fetch('/generate-timetable', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to generate timetable');
+            button.innerHTML = originalText;
+            button.disabled = false;
         });
+    });
 
-        document.getElementById('timetable-link').addEventListener('click', function() {
-            document.getElementById('home-section').style.display = 'none';
-            document.getElementById('timetable-section').style.display = 'block';
-            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-            this.classList.add('active');
-        });
+    // Edit modal functionality
+    let currentDay = '';
+    let currentPeriod = '';
+    let currentTeacher = '';
 
-        // Initialize with home active
-        document.getElementById('home-link').classList.add('active');
+    // Function to open edit modal
+    window.openEditModal = function(day, period, teacher) {
+        currentDay = day;
+        currentPeriod = period;
+        currentTeacher = teacher;
+        
+        // Update modal title
+        const modalTitle = document.querySelector('.modal-title');
+        modalTitle.innerHTML = `<i class="fas fa-edit"></i> Edit ${day} - Period ${period}`;
+        
+        // Update current teacher display
+        const currentTeacherDisplay = document.getElementById('current-subjects-with-category');
+        if (teacher && teacher !== 'EMPTY' && teacher !== null) {
+            currentTeacherDisplay.textContent = teacher;
+        } else {
+            currentTeacherDisplay.textContent = 'Empty slot';
+        }
+        
+        // Populate dropdown with deleted lessons
+        populateDeletedLessonsDropdown(teacher);
+        
+        // Show modal
+        $('#editModal').modal('show');
+    };
 
-        // Timetable generation with AJAX
-        document.getElementById('generate-timetable-form')?.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const button = this.querySelector('button');
-            const originalText = button.innerHTML;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
-            button.disabled = true;
+    // Function to populate dropdown with deleted lessons
+    function populateDeletedLessonsDropdown(currentTeacherName) {
+        const select = document.getElementById('subject-select');
+        select.innerHTML = '';
+        
+        // Add empty slot option
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = '-- Empty slot (no lesson) --';
+        emptyOption.className = 'text-muted';
+        if (!currentTeacherName || currentTeacherName === 'EMPTY' || currentTeacherName === null) {
+            emptyOption.selected = true;
+        }
+        select.appendChild(emptyOption);
+        
+        // Get deleted lessons from server
+        fetch('/get-deleted-lessons')
+            .then(response => response.json())
+            .then(data => {
+                const deletedLessons = data.deletedLessons || [];
+                
+                // Add deleted lessons
+                if (deletedLessons.length > 0) {
+                    deletedLessons.forEach(lesson => {
+                        if (lesson.teacher) {
+                            const option = document.createElement('option');
+                            option.value = lesson.teacher;
+                            option.textContent = `↩️ ${lesson.teacher} (recently deleted)`;
+                            option.classList.add('text-info');
+                            select.appendChild(option);
+                        }
+                    });
+                } else {
+                    // If no deleted lessons
+                    const noDeletedOption = document.createElement('option');
+                    noDeletedOption.value = '';
+                    noDeletedOption.textContent = 'No deleted lessons available';
+                    noDeletedOption.disabled = true;
+                    noDeletedOption.classList.add('text-muted', 'font-italic');
+                    select.appendChild(noDeletedOption);
+                }
+                
+                // Select current teacher if exists
+                if (currentTeacherName && currentTeacherName !== 'EMPTY' && currentTeacherName !== null) {
+                    select.value = currentTeacherName;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching deleted lessons:', error);
+                select.innerHTML = '<option disabled class="text-muted">Error loading deleted lessons</option>';
+            });
+    }
 
-            fetch('/generate-timetable', {
+    // Save changes button handler
+    document.getElementById('save-changes').addEventListener('click', function() {
+        const selectedTeacher = document.getElementById('subject-select').value;
+        
+        // Send update to server
+        updateTimetableSlot(currentDay, currentPeriod, selectedTeacher);
+    });
+
+    // Function to update timetable slot
+    function updateTimetableSlot(day, period, teacher) {
+        const button = document.getElementById('save-changes');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        button.disabled = true;
+
+        // Use the delete-slot endpoint if empty, otherwise use save-timetable
+        if (!teacher || teacher === '') {
+            // Delete slot
+            fetch('/delete-slot', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({})
+                body: JSON.stringify({
+                    day: day,
+                    slot: period
+                })
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    window.location.reload();
-                } else {
-                    alert('Error generating timetable: ' + (data.error || 'Unknown error'));
-                    button.innerHTML = originalText;
-                    button.disabled = false;
-                }
+                $('#editModal').modal('hide');
+                window.location.reload();
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Failed to generate timetable');
+                const errorMessage = document.getElementById('modal-error-message');
+                errorMessage.textContent = 'Failed to update slot';
+                errorMessage.style.display = 'block';
                 button.innerHTML = originalText;
                 button.disabled = false;
             });
-        });
-
-        // Edit modal functionality
-        let currentDay = '';
-        let currentPeriod = '';
-        let currentTeacher = '';
-        let deletedTeachers = [];
-
-        // Load deleted teachers from localStorage or initialize
-        function loadDeletedTeachers() {
-            const stored = localStorage.getItem('academiplan_deleted_teachers');
-            deletedTeachers = stored ? JSON.parse(stored) : [];
-        }
-
-        // Save deleted teachers to localStorage
-        function saveDeletedTeachers() {
-            localStorage.setItem('academiplan_deleted_teachers', JSON.stringify(deletedTeachers));
-        }
-
-        // Function to open edit modal
-        window.openEditModal = function(day, period, teacher) {
-            currentDay = day;
-            currentPeriod = period;
-            currentTeacher = teacher;
-            
-            // Load deleted teachers
-            loadDeletedTeachers();
-            
-            // Update modal title
-            const modalTitle = document.querySelector('.modal-title');
-            modalTitle.innerHTML = `<i class="fas fa-edit"></i> Edit ${day} - Period ${period}`;
-            
-            // Update current teacher display
-            const currentTeacherDisplay = document.getElementById('current-subjects-with-category');
-            if (teacher && teacher !== 'EMPTY' && teacher !== null && teacher !== '') {
-                // Get subject category for this teacher
-                fetch('/get-teacher-info', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ teacher: teacher })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.category) {
-                        currentTeacherDisplay.textContent = `${teacher} [${data.category}]`;
-                    } else {
-                        currentTeacherDisplay.textContent = teacher;
-                    }
-                })
-                .catch(() => {
-                    currentTeacherDisplay.textContent = teacher;
-                });
-            } else {
-                currentTeacherDisplay.textContent = 'Empty slot';
-            }
-            
-            // Populate dropdown with ONLY deleted teachers that can still be added
-            populateDeletedTeachersDropdown(teacher);
-            
-            // Show modal
-            $('#editModal').modal('show');
-        };
-
-        // Function to populate dropdown with ONLY deleted teachers
-        function populateDeletedTeachersDropdown(currentTeacherName) {
-            const select = document.getElementById('subject-select');
-            select.innerHTML = '';
-            
-            // Always show empty slot option
-            const emptyOption = document.createElement('option');
-            emptyOption.value = '';
-            emptyOption.textContent = '-- Empty slot (no lesson) --';
-            emptyOption.className = 'text-muted';
-            if (!currentTeacherName || currentTeacherName === 'EMPTY' || currentTeacherName === null || currentTeacherName === '') {
-                emptyOption.selected = true;
-            }
-            select.appendChild(emptyOption);
-            
-            // Fetch current timetable to check teacher hours
+        } else {
+            // Save timetable with updated slot
             fetch('/get-timetable')
             .then(response => response.json())
             .then(data => {
                 const timetable = data.timetable || {};
                 
-                // Calculate current hours for each teacher
-                const teacherHours = {};
-                const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+                // Update the specific slot
+                if (!timetable[day]) timetable[day] = [];
+                timetable[day][period] = teacher;
                 
-                days.forEach(day => {
-                    if (timetable[day]) {
-                        timetable[day].forEach(hourSlot => {
-                            if (hourSlot && hourSlot !== null) {
-                                teacherHours[hourSlot] = (teacherHours[hourSlot] || 0) + 1;
-                            }
-                        });
-                    }
+                // Send updated timetable to server
+                return fetch('/save-timetable', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ timetable: timetable })
                 });
-                
-                // Get all teachers from subjects
-                fetch('/get-all-teachers')
-                .then(response => response.json())
-                .then(teacherData => {
-                    const allTeachers = teacherData.teachers || [];
-                    
-                    // Add ONLY deleted teachers that still have hours available
-                    let hasDeletedTeachers = false;
-                    
-                    deletedTeachers.forEach(deleted => {
-                        const teacherName = deleted.teacher;
-                        
-                        // Find this teacher in allTeachers to get max hours
-                        const teacherInfo = allTeachers.find(t => t.name === teacherName);
-                        if (teacherInfo) {
-                            const maxHours = teacherInfo.maxHours || 5;
-                            const currentHours = teacherHours[teacherName] || 0;
-                            const hoursLeft = maxHours - currentHours;
-                            
-                            // Only show if teacher still has hours available
-                            if (hoursLeft > 0) {
-                                hasDeletedTeachers = true;
-                                const option = document.createElement('option');
-                                option.value = teacherName;
-                                
-                                // Show teacher with subject and hours info
-                                let displayText = `↩️ ${teacherName}`;
-                                if (teacherInfo.category) {
-                                    displayText += ` [${teacherInfo.category}]`;
-                                }
-                                displayText += ` - ${currentHours}/${maxHours}h (${hoursLeft}h left)`;
-                                
-                                option.textContent = displayText;
-                                option.classList.add('text-info', 'font-italic');
-                                
-                                select.appendChild(option);
-                            }
-                        }
-                    });
-                    
-                    // If no deleted teachers available
-                    if (!hasDeletedTeachers) {
-                        const noDeletedOption = document.createElement('option');
-                        noDeletedOption.value = '';
-                        noDeletedOption.textContent = 'No deleted teachers available';
-                        noDeletedOption.disabled = true;
-                        noDeletedOption.classList.add('text-muted', 'font-italic');
-                        select.appendChild(noDeletedOption);
-                    }
-                    
-                    // Select current teacher if it exists
-                    if (currentTeacherName && currentTeacherName !== 'EMPTY' && currentTeacherName !== null && currentTeacherName !== '') {
-                        select.value = currentTeacherName;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching teachers:', error);
-                    showNoTeachersMessage(select);
-                });
-            })
-            .catch(error => {
-                console.error('Error fetching timetable:', error);
-                showNoTeachersMessage(select);
-            });
-        }
-
-        function showNoTeachersMessage(select) {
-            const noDeletedOption = document.createElement('option');
-            noDeletedOption.value = '';
-            noDeletedOption.textContent = 'Cannot load teachers. Please refresh the page.';
-            noDeletedOption.disabled = true;
-            noDeletedOption.classList.add('text-danger', 'font-italic');
-            select.appendChild(noDeletedOption);
-        }
-
-        // Save changes button handler
-        document.getElementById('save-changes').addEventListener('click', function() {
-            const selectedTeacher = document.getElementById('subject-select').value;
-            
-            // Track if a teacher is being deleted (selecting empty slot)
-            if (currentTeacher && currentTeacher !== 'EMPTY' && currentTeacher !== null && currentTeacher !== '' &&
-                (!selectedTeacher || selectedTeacher === '')) {
-                
-                // Add to deleted teachers
-                deletedTeachers.unshift({
-                    teacher: currentTeacher,
-                    day: currentDay,
-                    period: currentPeriod,
-                    timestamp: new Date().getTime()
-                });
-                
-                // Keep only last 20 deleted teachers
-                if (deletedTeachers.length > 20) {
-                    deletedTeachers.pop();
-                }
-                
-                saveDeletedTeachers();
-            }
-            
-            // If restoring a deleted teacher, remove it from the list
-            if (selectedTeacher && selectedTeacher !== '') {
-                deletedTeachers = deletedTeachers.filter(deleted => 
-                    deleted.teacher !== selectedTeacher
-                );
-                saveDeletedTeachers();
-            }
-            
-            // Send update to server
-            updateTimetableSlot(currentDay, currentPeriod, selectedTeacher);
-        });
-
-        // Function to update timetable slot
-        function updateTimetableSlot(day, period, teacher) {
-            const button = document.getElementById('save-changes');
-            const originalText = button.innerHTML;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-            button.disabled = true;
-
-            // Use the correct endpoint - check if it's /update-slot or /save-timetable
-            fetch('/save-timetable', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ 
-                    timetable: window.currentTimetable || {},
-                    update: { day, period, teacher: teacher || null }
-                })
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success || data.timetable) {
-                    $('#editModal').modal('hide');
-                    window.location.reload();
-                } else {
-                    const errorMessage = document.getElementById('modal-error-message');
-                    errorMessage.textContent = data.error || 'Failed to update slot';
-                    errorMessage.style.display = 'block';
-                    button.innerHTML = originalText;
-                    button.disabled = false;
-                }
+                $('#editModal').modal('hide');
+                window.location.reload();
             })
             .catch(error => {
                 console.error('Error:', error);
                 const errorMessage = document.getElementById('modal-error-message');
-                errorMessage.textContent = 'Network error. Please try again.';
+                errorMessage.textContent = 'Failed to update slot';
                 errorMessage.style.display = 'block';
                 button.innerHTML = originalText;
                 button.disabled = false;
             });
         }
+    }
 
-        // Clear error message when modal is hidden
-        $('#editModal').on('hidden.bs.modal', function() {
-            document.getElementById('modal-error-message').style.display = 'none';
-        });
-    </script>
-</body>
-</html>
+    // Clear error message when modal is hidden
+    $('#editModal').on('hidden.bs.modal', function() {
+        document.getElementById('modal-error-message').style.display = 'none';
+    });
+</script>
