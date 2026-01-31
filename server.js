@@ -180,6 +180,7 @@ app.post('/generate-timetable', (req, res) => {
             try {
                 const timetableHtml = await ejs.renderFile('views/timetablePartial.ejs', { data: jsonData });
                 res.json({ 
+                    success: true,
                     timetable: jsonData.timetable, 
                     timetableHtml: '<h2>Generated Timetable</h2>' + timetableHtml,
                     deletedLessons: jsonData.deletedLessons,
@@ -477,10 +478,94 @@ app.post('/save-timetable', (req, res) => {
             
             const timetableHtml = await ejs.renderFile('views/timetablePartial.ejs', { data: jsonData });
             res.json({ 
+                success: true,
                 timetable: jsonData.timetable, 
                 timetableHtml: '<h2>Generated Timetable</h2>' + timetableHtml,
                 deletedLessons: jsonData.deletedLessons || [],
                 message: '✅ Timetable saved successfully!' + (availableMessage ? ' ' + availableMessage : ''),
+                availableTeachers: availableTeachers,
+                deletedTeachers: deletedTeachers
+            });
+        });
+    });
+});
+
+// NEW: Update specific slot endpoint
+app.post('/update-slot', (req, res) => {
+    const { day, period, teacher } = req.body;
+    console.log('Updating slot:', day, period, teacher);
+
+    fs.readFile('data.json', 'utf8', (err, data) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'Error reading data file' });
+        }
+
+        const jsonData = JSON.parse(data);
+        
+        // Ensure the structure exists
+        if (!jsonData.timetable) {
+            jsonData.timetable = {};
+        }
+        if (!jsonData.timetable[day]) {
+            jsonData.timetable[day] = Array(6).fill(null);
+        }
+        
+        const oldTeacher = jsonData.timetable[day][period];
+        
+        // If teacher is being removed (set to null), add to deleted lessons
+        if (oldTeacher && oldTeacher !== null && oldTeacher !== '' && 
+            (!teacher || teacher === '' || teacher === null)) {
+            
+            // Add to deleted lessons
+            const deletedLesson = {
+                teacher: oldTeacher,
+                day: day,
+                slot: period,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Initialize deletedLessons array if it doesn't exist
+            if (!jsonData.deletedLessons) {
+                jsonData.deletedLessons = [];
+            }
+            
+            // Add to beginning of array (most recent first)
+            jsonData.deletedLessons.unshift(deletedLesson);
+            
+            // Keep only last 20 deleted lessons
+            if (jsonData.deletedLessons.length > 20) {
+                jsonData.deletedLessons = jsonData.deletedLessons.slice(0, 20);
+            }
+        }
+        
+        // Update the slot
+        jsonData.timetable[day][period] = teacher || null;
+        
+        // Validate the timetable
+        const validation = validateTimetable(jsonData.timetable, jsonData.subjects);
+        if (!validation.valid) {
+            return res.status(400).json({ error: validation.errors.join(', ') });
+        }
+        
+        // Save to file
+        fs.writeFile('data.json', JSON.stringify(jsonData, null, 4), async (err) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ error: 'Error saving data file' });
+            }
+            
+            // Calculate available teachers
+            const availableTeachers = getAvailableTeachers(jsonData.timetable, jsonData.subjects, jsonData.deletedLessons || []);
+            const deletedTeachers = getDeletedTeachersForEdit(jsonData.timetable, jsonData.subjects, jsonData.deletedLessons || []);
+            
+            const timetableHtml = await ejs.renderFile('views/timetablePartial.ejs', { data: jsonData });
+            res.json({ 
+                success: true,
+                timetable: jsonData.timetable, 
+                timetableHtml: '<h2>Generated Timetable</h2>' + timetableHtml,
+                deletedLessons: jsonData.deletedLessons || [],
+                message: teacher ? `✅ Slot updated with ${teacher}` : '✅ Slot cleared',
                 availableTeachers: availableTeachers,
                 deletedTeachers: deletedTeachers
             });
@@ -555,6 +640,7 @@ app.post('/delete-slot', (req, res) => {
                 }
                 const timetableHtml = await ejs.renderFile('views/timetablePartial.ejs', { data: jsonData });
                 res.json({ 
+                    success: true,
                     timetable: jsonData.timetable, 
                     timetableHtml: '<h2>Generated Timetable</h2>' + timetableHtml,
                     deletedLessons: jsonData.deletedLessons || [],
@@ -594,6 +680,65 @@ app.post('/get-available-teachers', (req, res) => {
     });
 });
 
+// NEW: Get teacher info endpoint
+app.post('/get-teacher-info', (req, res) => {
+    const { teacher } = req.body;
+    
+    fs.readFile('data.json', 'utf8', (err, data) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'Error reading data file' });
+        }
+
+        const jsonData = JSON.parse(data);
+        const subjects = jsonData.subjects;
+        
+        // Find which subject this teacher belongs to
+        let teacherCategory = '';
+        let maxHours = 0;
+        
+        subjects.forEach(subject => {
+            if (subject.teacherNames?.includes(teacher)) {
+                teacherCategory = subject.name;
+                maxHours = subject.name === 'Languages' || subject.name === 'Sciences' ? 5 : 5;
+            }
+        });
+        
+        res.json({ 
+            teacher: teacher,
+            category: teacherCategory,
+            maxHours: maxHours,
+            found: teacherCategory !== ''
+        });
+    });
+});
+
+// NEW: Get all teachers endpoint
+app.get('/get-all-teachers', (req, res) => {
+    fs.readFile('data.json', 'utf8', (err, data) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'Error reading data file' });
+        }
+
+        const jsonData = JSON.parse(data);
+        const subjects = jsonData.subjects;
+        
+        const allTeachers = [];
+        subjects.forEach(subject => {
+            subject.teacherNames?.forEach(teacherName => {
+                allTeachers.push({
+                    name: teacherName,
+                    category: subject.name,
+                    maxHours: subject.name === 'Languages' || subject.name === 'Sciences' ? 5 : 5
+                });
+            });
+        });
+        
+        res.json({ teachers: allTeachers });
+    });
+});
+
 // Endpoint to get deleted lessons
 app.get('/get-deleted-lessons', (req, res) => {
     fs.readFile('data.json', 'utf8', (err, data) => {
@@ -623,13 +768,18 @@ app.get('/get-timetable', (req, res) => {
                     return;
                 }
                 res.json({ 
+                    success: true,
                     timetable: jsonData.timetable, 
                     timetableHtml: '<h2>Generated Timetable</h2>' + html,
                     deletedLessons: jsonData.deletedLessons || []
                 });
             });
         } else {
-            res.json({ timetableHtml: null, deletedLessons: [] });
+            res.json({ 
+                success: true,
+                timetableHtml: null, 
+                deletedLessons: [] 
+            });
         }
     });
 });
