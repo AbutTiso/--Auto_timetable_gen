@@ -231,7 +231,7 @@
         let currentSubject = '';
         let deletedLessons = JSON.parse(localStorage.getItem('academiplan_deleted_lessons')) || [];
 
-        // Function to open edit modal
+        // Function to open edit modal - This should be called from timetablePartial.ejs
         window.openEditModal = function(day, period, subject) {
             currentDay = day;
             currentPeriod = period;
@@ -276,7 +276,7 @@
             const select = document.getElementById('subject-select');
             select.innerHTML = '';
             
-            // Add empty slot option
+            // Add empty slot option - THIS IS THE "DELETE" OPTION
             const emptyOption = document.createElement('option');
             emptyOption.value = '';
             emptyOption.textContent = '-- Empty slot (no lesson) --';
@@ -300,7 +300,7 @@
                 }
             });
             
-            // Calculate current hours
+            // Calculate current hours for each subject from timetable
             const subjectHours = calculateCurrentSubjectHours();
             
             // Add regular subjects
@@ -312,7 +312,7 @@
                 const hoursLeft = maxHours - currentHours;
                 const isCurrentSubject = subjectName === currentSubjectName;
                 
-                // Skip if subject is maxed out and not currently selected
+                // Only show if there are hours left OR it's the current subject
                 if (hoursLeft <= 0 && !isCurrentSubject) return;
                 
                 const option = document.createElement('option');
@@ -320,21 +320,25 @@
                 
                 let displayText = `${subjectName} [${category}] - ${currentHours}/${maxHours}h`;
                 
-                // Add hours left indicator
+                // Add hours status
                 if (hoursLeft > 0) {
                     displayText += ` • ${hoursLeft}h left`;
                 } else {
                     displayText += ' • ⛔ Maxed out';
                 }
                 
+                // Add current subject indicator
                 if (isCurrentSubject) {
                     displayText += ' • 👈 Currently selected';
                     option.selected = true;
                 }
                 
                 option.textContent = displayText;
-                option.disabled = subject.teachers <= 0 || hoursLeft <= 0;
                 
+                // Disable if no teachers available
+                option.disabled = subject.teachers <= 0;
+                
+                // Style the option
                 if (isCurrentSubject) {
                     option.classList.add('font-weight-bold', 'bg-light');
                 }
@@ -353,7 +357,7 @@
                 const currentHours = subjectHours[subjectName] || 0;
                 const hoursLeft = maxHours - currentHours;
                 
-                // Only show if there are hours left
+                // Only show deleted lessons that still have hours available
                 if (hoursLeft > 0) {
                     const option = document.createElement('option');
                     option.value = subjectName;
@@ -370,7 +374,7 @@
             });
         }
 
-        // Helper functions
+        // Helper function to calculate current subject hours from timetable
         function calculateCurrentSubjectHours() {
             const hours = {};
             const timetableCells = document.querySelectorAll('.timetable-cell[data-subject]');
@@ -385,6 +389,7 @@
             return hours;
         }
 
+        // Helper function to get max hours for a category
         function getCategoryMaxHours(category) {
             const maxHours = {
                 'Languages': 10,
@@ -400,43 +405,49 @@
         document.getElementById('save-changes').addEventListener('click', function() {
             const selectedSubject = document.getElementById('subject-select').value;
             
-            // Track if a subject was deleted
+            // Track deletion - when a subject is removed and empty slot is selected
             if (currentSubject && currentSubject !== 'EMPTY' && (!selectedSubject || selectedSubject === '')) {
                 const category = getCategoryForSubject(currentSubject);
                 
-                // Add to deleted lessons
+                // Add to deleted lessons array
                 deletedLessons.unshift({
                     subject: currentSubject,
                     category: category,
                     timestamp: new Date().getTime()
                 });
                 
-                // Keep only last 10
+                // Keep only the 10 most recent deletions
                 if (deletedLessons.length > 10) {
                     deletedLessons.pop();
                 }
                 
+                // Save to localStorage
                 localStorage.setItem('academiplan_deleted_lessons', JSON.stringify(deletedLessons));
             }
             
-            // If restoring a deleted lesson, remove it from list
+            // If selecting a previously deleted subject, remove it from the deleted list
             if (selectedSubject && selectedSubject !== '') {
-                deletedLessons = deletedLessons.filter(deleted => 
-                    deleted.subject !== selectedSubject
-                );
-                localStorage.setItem('academiplan_deleted_lessons', JSON.stringify(deletedLessons));
+                const wasDeleted = deletedLessons.some(deleted => deleted.subject === selectedSubject);
+                if (wasDeleted) {
+                    deletedLessons = deletedLessons.filter(deleted => 
+                        deleted.subject !== selectedSubject
+                    );
+                    localStorage.setItem('academiplan_deleted_lessons', JSON.stringify(deletedLessons));
+                }
             }
             
             // Send update to server
             updateTimetableSlot(currentDay, currentPeriod, selectedSubject);
         });
 
+        // Function to update timetable slot via AJAX
         function updateTimetableSlot(day, period, subject) {
             const button = document.getElementById('save-changes');
             const originalText = button.innerHTML;
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
             button.disabled = true;
 
+            // Send the update to the server
             fetch('/update-slot', {
                 method: 'POST',
                 headers: {
@@ -451,9 +462,11 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Close modal and reload page to show changes
                     $('#editModal').modal('hide');
                     window.location.reload();
                 } else {
+                    // Show error message
                     const errorMessage = document.getElementById('modal-error-message');
                     errorMessage.textContent = data.error || 'Failed to update slot';
                     errorMessage.style.display = 'block';
