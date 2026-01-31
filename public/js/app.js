@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentTimetable = {};
     let subjectsData = [];
     let availableTeachers = [];
+    let deletedTeachers = [];
     let currentCell;
 
     // Initialize the app
@@ -64,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Update available teachers display WITH DEBUG LOGGING
+    // Update available teachers display
     function updateAvailableTeachers() {
         console.log('updateAvailableTeachers called, currentTimetable:', currentTimetable);
         
@@ -77,8 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .then(response => response.json())
         .then(data => {
-            console.log('Available teachers data:', data); // DEBUG LOG
+            console.log('Available teachers data:', data);
             availableTeachers = data.availableTeachers || [];
+            deletedTeachers = data.deletedTeachers || [];
             updateEditModalOptions();
         })
         .catch(error => {
@@ -86,134 +88,132 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // FIXED: Update edit modal with empty slot FIRST, then deleted teachers
+    // Update edit modal with clear organization
     function updateEditModalOptions() {
         const subjectSelect = document.getElementById('subject-select');
         if (!subjectSelect) return;
 
         console.log('updateEditModalOptions called');
 
-        fetch('/get-available-teachers', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ timetable: currentTimetable })
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Edit modal data received:', data); // DEBUG LOG
+        // CLEAR ALL OPTIONS COMPLETELY
+        subjectSelect.innerHTML = '';
+
+        // 1. ALWAYS ADD EMPTY SLOT OPTION FIRST
+        const emptyOption = document.createElement('option');
+        emptyOption.value = "";
+        emptyOption.textContent = "-- Empty slot (no lesson) --";
+        emptyOption.className = "text-muted font-weight-bold";
+        emptyOption.style.backgroundColor = "#f8f9fa";
+        subjectSelect.appendChild(emptyOption);
+
+        // 2. SHOW DELETED TEACHERS (CAN BE ADDED BACK)
+        const deletableTeachers = deletedTeachers.filter(t => t.canBeAdded);
+        const maxedOutTeachers = deletedTeachers.filter(t => !t.canBeAdded);
+        
+        if (deletableTeachers.length > 0) {
+            // Add a separator for deletable teachers
+            const deletedHeader = document.createElement('option');
+            deletedHeader.disabled = true;
+            deletedHeader.textContent = "────────── Recently Deleted Teachers ──────────";
+            deletedHeader.style.fontWeight = "bold";
+            deletedHeader.style.textAlign = "center";
+            deletedHeader.style.backgroundColor = "#fff3cd";
+            subjectSelect.appendChild(deletedHeader);
             
-            // CLEAR ALL OPTIONS COMPLETELY
-            subjectSelect.innerHTML = '';
-
-            // 1. ALWAYS ADD EMPTY SLOT OPTION FIRST
-            const emptyOption = document.createElement('option');
-            emptyOption.value = "";
-            emptyOption.textContent = "-- Empty slot (no lesson) --";
-            emptyOption.className = "text-muted font-weight-bold";
-            emptyOption.style.backgroundColor = "#f8f9fa";
-            subjectSelect.appendChild(emptyOption);
-
-            // 2. CHECK IF WE HAVE DELETED TEACHERS
-            if (data.deletedTeachers && data.deletedTeachers.length > 0) {
-                console.log('Adding deleted teachers to dropdown:', data.deletedTeachers);
+            deletableTeachers.forEach(teacher => {
+                const option = document.createElement('option');
+                option.value = teacher.name;
                 
-                data.deletedTeachers.forEach(teacher => {
-                    const option = document.createElement('option');
-                    option.value = teacher.name;
-                    // Show deleted teachers with their current status
-                    const statusText = teacher.canBeAdded === false ? 
-                        `⛔ ${teacher.name} (max hours reached - ${teacher.currentHours}/${teacher.maxHours}h)` :
-                        `↩️ ${teacher.name} (was deleted - ${teacher.currentHours}/${teacher.maxHours}h)`;
-                    option.textContent = statusText;
-                    
-                    if (teacher.canBeAdded === false) {
-                        option.style.color = "#dc3545"; // Red for maxed out
-                        option.style.fontWeight = "500";
-                        option.disabled = true; // Disable if can't be added
-                    } else {
-                        option.style.color = "#e65100"; // Orange for available deleted
-                        option.style.fontWeight = "500";
-                        option.style.fontStyle = "italic";
-                    }
-                    option.style.backgroundColor = "#fff3cd";
-                    subjectSelect.appendChild(option);
-                });
-            } else {
-                console.log('No deleted teachers found in response');
-            }
-
-            // 3. ADD AVAILABLE TEACHERS (IF ANY)
-            if (data.availableTeachers && data.availableTeachers.length > 0) {
-                console.log('Adding available teachers to dropdown:', data.availableTeachers);
+                // Calculate available slots
+                const availableSlots = teacher.maxHours - teacher.currentHours;
+                const slotText = availableSlots === 1 ? 'slot' : 'slots';
                 
-                data.availableTeachers.forEach(teacher => {
-                    const option = document.createElement('option');
-                    option.value = teacher.name;
-                    option.textContent = `✅ ${teacher.name} (${teacher.currentHours}/${teacher.maxHours}h)`;
-                    option.style.color = "#155724";
-                    option.style.fontWeight = "500";
-                    subjectSelect.appendChild(option);
-                });
-            } else {
-                console.log('No available teachers found in response');
-            }
+                option.textContent = `↩️ ${teacher.name} (${teacher.currentHours}/${teacher.maxHours}h - ${availableSlots} ${slotText} available)`;
+                option.style.color = "#e65100"; // Orange
+                option.style.fontWeight = "500";
+                option.style.fontStyle = "italic";
+                option.title = `Click to add ${teacher.name} back to timetable. They have ${availableSlots} available slot(s).`;
+                option.style.backgroundColor = "#fff3cd";
+                subjectSelect.appendChild(option);
+            });
+        }
 
-            // If no teachers available at all (besides empty slot)
-            if (subjectSelect.options.length === 1) {
-                console.log('No teachers found, showing "No teachers available" message');
-                const noOptions = document.createElement('option');
-                noOptions.disabled = true;
-                noOptions.textContent = "No teachers available to add";
-                noOptions.className = "text-muted font-italic";
-                subjectSelect.appendChild(noOptions);
-            }
+        // 3. SHOW MAXED OUT DELETED TEACHERS (CANNOT BE ADDED)
+        if (maxedOutTeachers.length > 0) {
+            const maxedHeader = document.createElement('option');
+            maxedHeader.disabled = true;
+            maxedHeader.textContent = "────────── Maxed Out Teachers ──────────";
+            maxedHeader.style.fontWeight = "bold";
+            maxedHeader.style.textAlign = "center";
+            maxedHeader.style.backgroundColor = "#f8d7da";
+            subjectSelect.appendChild(maxedHeader);
+            
+            maxedOutTeachers.forEach(teacher => {
+                const option = document.createElement('option');
+                option.value = teacher.name;
+                option.textContent = `⛔ ${teacher.name} (${teacher.currentHours}/${teacher.maxHours}h - FULL)`;
+                option.style.color = "#dc3545"; // Red
+                option.style.fontWeight = "500";
+                option.disabled = true;
+                option.title = `${teacher.name} has reached maximum hours (${teacher.maxHours}h/week) and cannot be added`;
+                option.style.backgroundColor = "#f8d7da";
+                subjectSelect.appendChild(option);
+            });
+        }
 
-            // Set current value
-            setTimeout(() => {
-                if (currentCell) {
-                    const day = currentCell.data('day');
-                    const slot = currentCell.closest('tr').data('slot');
-                    const currentTeacher = currentTimetable[day] && currentTimetable[day][slot] ? currentTimetable[day][slot] : '';
-                    
-                    // For empty slots, set to empty string
-                    if (!currentTeacher || currentTeacher === '-') {
-                        subjectSelect.value = "";
-                    } else {
-                        // Clean teacher name (remove emojis)
-                        const cleanTeacher = currentTeacher.replace(/✅|↩️|⛔/g, '').trim();
-                        subjectSelect.value = cleanTeacher;
-                    }
-                    
-                    console.log('Setting modal value:', { 
-                        day, slot, currentTeacher, 
-                        selectValue: subjectSelect.value 
-                    });
+        // 4. ADD AVAILABLE TEACHERS (NON-DELETED)
+        if (availableTeachers.length > 0) {
+            const availableHeader = document.createElement('option');
+            availableHeader.disabled = true;
+            availableHeader.textContent = "────────── Available Teachers ──────────";
+            availableHeader.style.fontWeight = "bold";
+            availableHeader.style.textAlign = "center";
+            availableHeader.style.backgroundColor = "#d4edda";
+            subjectSelect.appendChild(availableHeader);
+            
+            availableTeachers.forEach(teacher => {
+                const option = document.createElement('option');
+                option.value = teacher.name;
+                const remainingHours = Math.min(teacher.remainingHours, teacher.categoryRemaining);
+                option.textContent = `✅ ${teacher.name} (${teacher.currentHours}/${teacher.maxHours}h - ${remainingHours}h left)`;
+                option.style.color = "#155724";
+                option.style.fontWeight = "500";
+                option.title = `${teacher.name} has ${remainingHours} hours available this week`;
+                subjectSelect.appendChild(option);
+            });
+        }
+
+        // If no teachers available at all (besides empty slot)
+        if (subjectSelect.options.length === 1) {
+            const noOptions = document.createElement('option');
+            noOptions.disabled = true;
+            noOptions.textContent = "No teachers available to add";
+            noOptions.className = "text-muted font-italic";
+            subjectSelect.appendChild(noOptions);
+        }
+
+        // Set current value
+        setTimeout(() => {
+            if (currentCell) {
+                const day = currentCell.data('day');
+                const slot = currentCell.closest('tr').data('slot');
+                const currentTeacher = currentTimetable[day] && currentTimetable[day][slot] ? currentTimetable[day][slot] : '';
+                
+                // For empty slots, set to empty string
+                if (!currentTeacher || currentTeacher === '-') {
+                    subjectSelect.value = "";
+                } else {
+                    // Clean teacher name (remove emojis)
+                    const cleanTeacher = currentTeacher.replace(/✅|↩️|⛔/g, '').trim();
+                    subjectSelect.value = cleanTeacher;
                 }
-            }, 100);
-        })
-        .catch(error => {
-            console.error('Error fetching teachers for edit modal:', error);
-            
-            // Show error in dropdown but still show empty slot
-            const subjectSelect = document.getElementById('subject-select');
-            if (subjectSelect) {
-                subjectSelect.innerHTML = '';
                 
-                const emptyOption = document.createElement('option');
-                emptyOption.value = "";
-                emptyOption.textContent = "-- Empty slot (no lesson) --";
-                emptyOption.className = "text-muted font-weight-bold";
-                subjectSelect.appendChild(emptyOption);
-                
-                const errorOption = document.createElement('option');
-                errorOption.disabled = true;
-                errorOption.textContent = "Error loading teachers. Please try again.";
-                errorOption.className = "text-danger";
-                subjectSelect.appendChild(errorOption);
+                console.log('Setting modal value:', { 
+                    day, slot, currentTeacher, 
+                    selectValue: subjectSelect.value 
+                });
             }
-        });
+        }, 100);
     }
 
     // Navigation handlers
@@ -301,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 100);
     });
 
-    // Save changes handler - FIXED to handle deleted teachers
+    // Save changes handler - IMPROVED for slot-based system
     document.getElementById('save-changes').addEventListener('click', () => {
         const selectedTeacher = $('#subject-select').val() || '';
         
@@ -317,24 +317,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Check if teacher can be added
         if (selectedTeacher && selectedTeacher !== '') {
-            // Check if it's a deleted teacher (remove emoji first)
+            // Remove emojis and clean teacher name
             const cleanTeacher = selectedTeacher.replace(/↩️|✅|⛔/g, '').trim();
-            const isDeletedTeacher = selectedTeacher.includes('↩️') || selectedTeacher.includes('⛔');
             
-            if (!isDeletedTeacher) {
-                // For regular teachers, check availability
-                const isAvailable = availableTeachers.some(t => t.name === cleanTeacher);
-                if (!isAvailable) {
-                    showMessage(`❌ Cannot add ${cleanTeacher} - weekly hour limit reached!`, 'error');
-                    return;
-                }
-            } else if (selectedTeacher.includes('⛔')) {
-                // If it's a deleted teacher that's maxed out
-                showMessage(`❌ Cannot add ${cleanTeacher} - this teacher has reached their maximum hours!`, 'error');
+            // Check if this is a maxed out teacher
+            if (selectedTeacher.includes('⛔')) {
+                showMessage(`❌ Cannot add ${cleanTeacher} - this teacher has reached their maximum hours (5h/week)!`, 'error');
                 return;
             }
             
-            // Use clean teacher name (without emoji)
+            // Check if teacher has available hours
+            let teacherInfo = null;
+            
+            // First check in deleted teachers
+            if (selectedTeacher.includes('↩️')) {
+                teacherInfo = deletedTeachers.find(t => t.name === cleanTeacher);
+            } 
+            // Then check in available teachers
+            else if (selectedTeacher.includes('✅')) {
+                teacherInfo = availableTeachers.find(t => t.name === cleanTeacher);
+            }
+            // If no emoji, search both arrays
+            else {
+                teacherInfo = [...deletedTeachers, ...availableTeachers].find(t => t.name === cleanTeacher);
+            }
+            
+            if (teacherInfo) {
+                // Check if teacher has reached max hours
+                if (teacherInfo.currentHours >= teacherInfo.maxHours) {
+                    showMessage(`❌ Cannot add ${cleanTeacher} - weekly hour limit reached (${teacherInfo.maxHours}h max)!`, 'error');
+                    return;
+                }
+                
+                // Check if subject category has capacity
+                if (teacherInfo.categoryRemaining <= 0) {
+                    const subjectName = teacherInfo.subject;
+                    const categoryLimit = subjectName === 'Languages' || subjectName === 'Sciences' ? 10 : 5;
+                    showMessage(`❌ Cannot add ${cleanTeacher} - ${subjectName} category has reached its limit (${categoryLimit}h max)!`, 'error');
+                    return;
+                }
+            }
+            
+            // Teacher can be added - proceed with save
             const teacherToSave = cleanTeacher;
             
             const updatedTimetable = JSON.parse(JSON.stringify(currentTimetable));
@@ -574,7 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Delete slot handler - ADDED DEBUG LOGGING
+    // Delete slot handler
     document.addEventListener('click', function(e) {
         const deleteBtn = e.target.closest('.delete-btn');
         if (deleteBtn) {

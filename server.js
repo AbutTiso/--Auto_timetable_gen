@@ -312,7 +312,7 @@ function validateTimetable(timetable, subjects) {
     return result;
 }
 
-// FIXED: Function to get available teachers (NON-DELETED ones only)
+// Get available teachers (NON-DELETED ones only)
 function getAvailableTeachers(timetable, subjects, deletedLessons = []) {
     const teacherHours = calculateTeacherHours(timetable);
     const categoryHours = calculateCategoryHours(timetable, subjects);
@@ -376,7 +376,7 @@ function getAvailableTeachers(timetable, subjects, deletedLessons = []) {
     return availableTeachers;
 }
 
-// FIXED: Function to get deleted teachers specifically for edit modal - ALWAYS show deleted teachers
+// Get deleted teachers for edit modal - IMPROVED slot tracking
 function getDeletedTeachersForEdit(timetable, subjects, deletedLessons = []) {
     console.log('getDeletedTeachersForEdit called with:', {
         timetableKeys: Object.keys(timetable || {}),
@@ -394,6 +394,12 @@ function getDeletedTeachersForEdit(timetable, subjects, deletedLessons = []) {
         .map(lesson => lesson.teacher);
     
     console.log('All deleted teachers found:', allDeletedTeachers);
+    
+    // Count deletions per teacher
+    const deletionCount = {};
+    allDeletedTeachers.forEach(teacher => {
+        deletionCount[teacher] = (deletionCount[teacher] || 0) + 1;
+    });
     
     // Create a Set to get unique teachers
     const uniqueDeletedTeachers = [...new Set(allDeletedTeachers)];
@@ -427,21 +433,26 @@ function getDeletedTeachersForEdit(timetable, subjects, deletedLessons = []) {
                 const currentCategoryHours = categoryHours[teacherSubject.name] || 0;
                 const remainingCategoryHours = maxCategoryHours - currentCategoryHours;
                 const remainingTeacherHours = maxHoursPerTeacher - currentHours;
+                const totalDeletions = deletionCount[teacher] || 0;
                 
-                console.log(`Checking ${teacher}: currentHours=${currentHours}, max=${maxHoursPerTeacher}, remaining=${remainingTeacherHours}, categoryRemaining=${remainingCategoryHours}`);
+                console.log(`Checking ${teacher}: currentHours=${currentHours}, max=${maxHoursPerTeacher}, remaining=${remainingTeacherHours}, deletions=${totalDeletions}`);
                 
-                // ALWAYS add deleted teacher to the list, even if at max hours
-                // This allows user to see and potentially re-add deleted teachers
+                // Calculate available slots (max hours - current hours)
+                const availableSlots = maxHoursPerTeacher - currentHours;
+                
+                // ALWAYS add deleted teacher to the list
                 deletedTeachersList.push({
                     name: teacher,
                     currentHours: currentHours,
                     maxHours: maxHoursPerTeacher,
+                    availableSlots: availableSlots,
                     remainingHours: Math.min(remainingTeacherHours, remainingCategoryHours),
                     subject: teacherSubject.name,
                     type: 'deleted',
                     categoryRemaining: remainingCategoryHours,
                     recentlyDeleted: true,
-                    canBeAdded: remainingTeacherHours > 0 && remainingCategoryHours > 0
+                    canBeAdded: availableSlots > 0 && remainingCategoryHours > 0,
+                    deletionCount: totalDeletions
                 });
             } else {
                 console.log(`Could not find subject for teacher: ${teacher}`);
@@ -453,7 +464,9 @@ function getDeletedTeachersForEdit(timetable, subjects, deletedLessons = []) {
         name: t.name,
         currentHours: t.currentHours,
         maxHours: t.maxHours,
-        canBeAdded: t.canBeAdded
+        availableSlots: t.availableSlots,
+        canBeAdded: t.canBeAdded,
+        deletionCount: t.deletionCount
     })));
     return deletedTeachersList;
 }
@@ -525,6 +538,27 @@ app.post('/save-timetable', (req, res) => {
 
         jsonData.timetable = newTimetable;
 
+        // When a teacher is added back, remove them from deletedLessons if they reach max hours
+        const teacherHours = calculateTeacherHours(newTimetable);
+        if (jsonData.deletedLessons && jsonData.deletedLessons.length > 0) {
+            jsonData.deletedLessons = jsonData.deletedLessons.filter(lesson => {
+                const teacher = lesson.teacher;
+                const hours = teacherHours[teacher] || 0;
+                
+                // Find max hours for this teacher
+                let maxHours = 0;
+                subjects.forEach(subject => {
+                    const teacherNames = subject.teacherNames || subject.teacheNames || [];
+                    if (teacherNames.includes(teacher)) {
+                        maxHours = 5; // All teachers have max 5 hours
+                    }
+                });
+                
+                // Keep the lesson if teacher hasn't reached max hours yet
+                return hours < maxHours;
+            });
+        }
+
         fs.writeFile('data.json', JSON.stringify(jsonData, null, 4), async (err) => {
             if (err) {
                 console.error(err);
@@ -544,8 +578,11 @@ app.post('/save-timetable', (req, res) => {
                 }
                 
                 if (deletedTeachers.length > 0) {
-                    availableMessage += (availableMessage ? ' | ' : '') + 'Recently deleted available: ' + 
-                        deletedTeachers.map(t => `${t.name}`).join(', ');
+                    const addableDeletedTeachers = deletedTeachers.filter(t => t.canBeAdded);
+                    if (addableDeletedTeachers.length > 0) {
+                        availableMessage += (availableMessage ? ' | ' : '') + 'Recently deleted (can be added back): ' + 
+                            addableDeletedTeachers.map(t => `${t.name} (${t.availableSlots} slot${t.availableSlots !== 1 ? 's' : ''} available)`).join(', ');
+                    }
                 }
             }
             
@@ -592,24 +629,13 @@ app.post('/delete-slot', (req, res) => {
                     jsonData.deletedLessons = [];
                 }
                 
-                // Remove any existing entries for this teacher (we want most recent only)
-                jsonData.deletedLessons = jsonData.deletedLessons.filter(lesson => 
-                    lesson.teacher !== deletedTeacher
-                );
-                
-                // Add to beginning of array (most recent first)
+                // Add to array (allow multiple deletions of same teacher)
                 jsonData.deletedLessons.unshift(deletedLesson);
                 
-                // Keep only last 10 unique deleted teachers
-                const uniqueTeachers = [];
-                const filteredLessons = [];
-                for (const lesson of jsonData.deletedLessons) {
-                    if (!uniqueTeachers.includes(lesson.teacher) && uniqueTeachers.length < 10) {
-                        uniqueTeachers.push(lesson.teacher);
-                        filteredLessons.push(lesson);
-                    }
+                // Keep only last 20 deletions (to avoid memory issues)
+                if (jsonData.deletedLessons.length > 20) {
+                    jsonData.deletedLessons = jsonData.deletedLessons.slice(0, 20);
                 }
-                jsonData.deletedLessons = filteredLessons;
             }
             
             jsonData.timetable[day][slot] = null;
@@ -623,14 +649,17 @@ app.post('/delete-slot', (req, res) => {
             let availableMessage = '';
             if (availableTeachers.length > 0 || deletedTeachers.length > 0) {
                 if (availableTeachers.length > 0) {
-                    availableMessage = ' You can now add: ' + availableTeachers.map(t => 
+                    availableMessage = ' Available: ' + availableTeachers.map(t => 
                         `${t.name} (${t.remainingHours}h left)`
                     ).join(', ');
                 }
                 
                 if (deletedTeachers.length > 0) {
-                    availableMessage += (availableMessage ? ' | ' : '') + 'Recently deleted available: ' + 
-                        deletedTeachers.map(t => `${t.name}`).join(', ');
+                    const addableDeletedTeachers = deletedTeachers.filter(t => t.canBeAdded);
+                    if (addableDeletedTeachers.length > 0) {
+                        availableMessage += (availableMessage ? ' | ' : '') + 'Recently deleted: ' + 
+                            addableDeletedTeachers.map(t => `${t.name} (${t.availableSlots} slot${t.availableSlots !== 1 ? 's' : ''} available)`).join(', ');
+                    }
                 }
             }
             
@@ -644,7 +673,7 @@ app.post('/delete-slot', (req, res) => {
                     timetable: jsonData.timetable, 
                     timetableHtml: '<h2>Generated Timetable</h2>' + timetableHtml,
                     deletedLessons: jsonData.deletedLessons || [],
-                    message: '✅ Slot cleared successfully! Deleted teacher is now available in edit dropdown.' + availableMessage,
+                    message: '✅ Slot cleared successfully! Deleted teacher is now available in edit dropdown.' + (availableMessage ? ' ' + availableMessage : ''),
                     availableTeachers: availableTeachers,
                     deletedTeachers: deletedTeachers
                 });
