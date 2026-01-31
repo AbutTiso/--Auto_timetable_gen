@@ -1,11 +1,35 @@
 const express = require('express');
 const fs = require('fs');
 const app = express();
-const port = process.env.PORT || 3000;  // ← ONLY CHANGE THIS LINE
+const port = process.env.PORT || 3000;
 const ejs = require('ejs');
 
-// EVERYTHING ELSE STAYS EXACTLY THE SAME AS YOUR CODE ABOVE ↓
-// [All your existing code remains unchanged...]
+// ============================================
+// ADDED: Ensure data.json exists with default structure
+// ============================================
+const defaultData = {
+  "subjects": [
+    { "name": "Languages", "hours": 10, "teachers": 2, "category": "Languages" },
+    { "name": "Sciences", "hours": 10, "teachers": 2, "category": "Sciences" },
+    { "name": "Arts", "hours": 5, "teachers": 1, "category": "Arts" },
+    { "name": "Sports", "hours": 5, "teachers": 1, "category": "Sports" }
+  ],
+  "timetable": null
+};
+
+// Check if data.json exists, create if not
+if (!fs.existsSync('data.json')) {
+  try {
+    fs.writeFileSync('data.json', JSON.stringify(defaultData, null, 4));
+    console.log('✅ Created default data.json file');
+  } catch (err) {
+    console.error('❌ Error creating data.json:', err);
+  }
+} else {
+  console.log('✅ data.json already exists');
+}
+// ============================================
+
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use(express.json());
@@ -409,5 +433,5 @@ app.get('/get-timetable', (req, res) => {
 });
 
 app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);  // Updated log message (optional)
+    console.log(`Server is running on port ${port}`);
 });
