@@ -43,6 +43,15 @@ app.get('/', (req, res) => {
             return;
         }
         const jsonData = JSON.parse(data);
+        // FIX: Check for both "teacherNames" and "teacheNames" (typo)
+        jsonData.subjects = jsonData.subjects.map(subject => {
+            // Use teacherNames if it exists, otherwise use teacheNames (with typo)
+            if (!subject.teacherNames && subject.teacheNames) {
+                subject.teacherNames = subject.teacheNames;
+                delete subject.teacheNames;
+            }
+            return subject;
+        });
         res.render('index', { data: jsonData });
     });
 });
@@ -57,6 +66,15 @@ app.post('/generate-timetable', (req, res) => {
         }
 
         const jsonData = JSON.parse(data);
+        // FIX: Ensure subjects have teacherNames property
+        jsonData.subjects = jsonData.subjects.map(subject => {
+            if (!subject.teacherNames && subject.teacheNames) {
+                subject.teacherNames = subject.teacheNames;
+                delete subject.teacheNames;
+            }
+            return subject;
+        });
+        
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
         const hoursPerDay = 6;
         const totalSlots = days.length * hoursPerDay; // 30 slots total
@@ -193,7 +211,7 @@ app.post('/generate-timetable', (req, res) => {
     });
 });
 
-// Enhanced validation function for CORRECT constraints
+// Enhanced validation function for CORRECT constraints - FIXED to handle both property names
 function validateTimetable(timetable, subjects) {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
     const result = { valid: true, errors: [], warnings: [] };
@@ -201,7 +219,9 @@ function validateTimetable(timetable, subjects) {
     // Track weekly hours per teacher
     const teacherHours = {};
     subjects.forEach(subject => {
-        subject.teacherNames?.forEach(teacher => {
+        // FIX: Check for both property names
+        const teacherNames = subject.teacherNames || subject.teacheNames || [];
+        teacherNames.forEach(teacher => {
             teacherHours[teacher] = 0;
         });
     });
@@ -226,7 +246,9 @@ function validateTimetable(timetable, subjects) {
                 
                 // Find which subject this teacher belongs to and count category hours
                 subjects.forEach(subject => {
-                    if (subject.teacherNames?.includes(teacher)) {
+                    // FIX: Check for both property names
+                    const teacherNames = subject.teacherNames || subject.teacheNames || [];
+                    if (teacherNames.includes(teacher)) {
                         categoryHours[subject.name] = (categoryHours[subject.name] || 0) + 1;
                     }
                 });
@@ -242,6 +264,9 @@ function validateTimetable(timetable, subjects) {
 
     // Check CORRECT teacher hour limits
     subjects.forEach(subject => {
+        // FIX: Get teacher names from either property
+        const teacherNames = subject.teacherNames || subject.teacheNames || [];
+        
         if (subject.name === 'Languages' || subject.name === 'Sciences') {
             // Languages and Sciences: 10 hours total, 5 hours per teacher
             if (categoryHours[subject.name] > 10) {
@@ -252,7 +277,7 @@ function validateTimetable(timetable, subjects) {
             }
             
             // Check individual teachers (should be 5 hours each)
-            subject.teacherNames?.forEach(teacher => {
+            teacherNames.forEach(teacher => {
                 const hours = teacherHours[teacher] || 0;
                 if (hours > 5) {
                     result.valid = false;
@@ -271,13 +296,15 @@ function validateTimetable(timetable, subjects) {
             }
             
             // Check the single teacher
-            const teacher = subject.teacherNames[0];
-            const hours = teacherHours[teacher] || 0;
-            if (hours > 5) {
-                result.valid = false;
-                result.errors.push(`${teacher} exceeds 5 hours (has ${hours})`);
-            } else if (hours < 5) {
-                result.warnings.push(`${teacher} has ${hours}/5 hours`);
+            if (teacherNames.length > 0) {
+                const teacher = teacherNames[0];
+                const hours = teacherHours[teacher] || 0;
+                if (hours > 5) {
+                    result.valid = false;
+                    result.errors.push(`${teacher} exceeds 5 hours (has ${hours})`);
+                } else if (hours < 5) {
+                    result.warnings.push(`${teacher} has ${hours}/5 hours`);
+                }
             }
         }
     });
@@ -299,7 +326,10 @@ function getAvailableTeachers(timetable, subjects, deletedLessons = []) {
     console.log('Deleted teacher names to exclude:', deletedTeacherNames);
     
     subjects.forEach(subject => {
-        subject.teacherNames?.forEach(teacher => {
+        // FIX: Get teacher names from either property
+        const teacherNames = subject.teacherNames || subject.teacheNames || [];
+        
+        teacherNames.forEach(teacher => {
             // Skip if this teacher is in deleted lessons
             if (deletedTeacherNames.includes(teacher)) {
                 console.log(`Skipping ${teacher} - it's in deleted lessons`);
@@ -374,7 +404,9 @@ function getDeletedTeachersForEdit(timetable, subjects, deletedLessons = []) {
             // Find which subject this teacher belongs to
             let teacherSubject = null;
             subjects.forEach(subject => {
-                if (subject.teacherNames?.includes(teacher)) {
+                // FIX: Check for both property names
+                const teacherNames = subject.teacherNames || subject.teacheNames || [];
+                if (teacherNames.includes(teacher)) {
                     teacherSubject = subject;
                 }
             });
@@ -459,7 +491,9 @@ function calculateCategoryHours(timetable, subjects) {
             if (teacher && teacher !== null) {
                 // Find which subject this teacher belongs to
                 subjects.forEach(subject => {
-                    if (subject.teacherNames?.includes(teacher)) {
+                    // FIX: Check for both property names
+                    const teacherNames = subject.teacherNames || subject.teacheNames || [];
+                    if (teacherNames.includes(teacher)) {
                         categoryHours[subject.name] = (categoryHours[subject.name] || 0) + 1;
                     }
                 });

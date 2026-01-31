@@ -5,30 +5,78 @@
             "hours": 10,
             "teachers": 2,
             "category": "Languages",
-            "teacheNames":["Language A","Language B"]
+            "teacherNames": ["Languages A", "Languages B"]
         },
         {
             "name": "Sciences",
             "hours": 10,
             "teachers": 2,
-            "category": "Sciences",
-            "teacheNames":["Science A","Science B"]
+            "category": "Sciences", 
+            "teacherNames": ["Sciences A", "Sciences B"]
         },
         {
             "name": "Arts",
             "hours": 5,
             "teachers": 1,
             "category": "Arts",
-            "teacheNames":["Arts Teacher"]
+            "teacherNames": ["Arts Teacher"]
         },
         {
             "name": "Sports",
             "hours": 5,
             "teachers": 1,
             "category": "Sports",
-            "teacheNames":["Sports Teacher"]
+            "teacherNames": ["Sports Teacher"]
         }
     ],
-    "timetable":null
-
+    "timetable": {
+        "Monday": [
+            null,
+            "Sciences B",
+            "Sciences A",
+            "Languages B",
+            "Arts Teacher",
+            "Languages B"
+        ],
+        "Tuesday": [
+            "Sciences B",
+            "Sciences A",
+            "Languages B",
+            "Sports Teacher",
+            "Sciences A",
+            "Sports Teacher"
+        ],
+        "Wednesday": [
+            "Languages A",
+            "Sciences B",
+            "Arts Teacher",
+            "Languages A",
+            "Languages B",
+            "Sciences A"
+        ],
+        "Thursday": [
+            "Languages A",
+            "Sports Teacher",
+            "Arts Teacher",
+            "Languages A",
+            "Languages A",
+            "Sciences A"
+        ],
+        "Friday": [
+            "Languages B",
+            "Arts Teacher",
+            "Sciences B",
+            "Sciences B",
+            "Sports Teacher",
+            "Sports Teacher"
+        ]
+    },
+    "deletedLessons": [
+        {
+            "teacher": "Arts Teacher",
+            "day": "Monday",
+            "slot": 0,
+            "timestamp": "2026-01-31T14:50:29.071Z"
+        }
+    ]
 }
