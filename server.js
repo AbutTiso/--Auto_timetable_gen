@@ -59,84 +59,37 @@ app.post('/generate-timetable', (req, res) => {
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
         const hoursPerDay = 6;
 
-        // Create completely empty timetable with teacher assignment
+        // Create empty timetable
         let timetable = {};
-        let teacherSchedule = {}; // Track which teacher teaches when
-        
-        // Initialize teacher schedule tracking
-        jsonData.subjects.forEach(subject => {
-            subject.teacherNames?.forEach(teacher => {
-                teacherSchedule[teacher] = {};
-                days.forEach(day => {
-                    teacherSchedule[teacher][day] = Array(hoursPerDay).fill(false);
-                });
-            });
-        });
-
         days.forEach(day => {
-            timetable[day] = Array.from({ length: hoursPerDay }, () => ({
-                subject: null,
-                teacher: null
-            }));
+            timetable[day] = Array(hoursPerDay).fill(null);
         });
 
-        // Subject requirements with A/B teacher naming
-        const subjectRequirements = [
-            { 
-                name: 'Languages', 
-                hours: 10, 
-                teachers: 2,
-                teacherNames: ['Languages A', 'Languages B']
-            },
-            { 
-                name: 'Sciences', 
-                hours: 10, 
-                teachers: 2,
-                teacherNames: ['Sciences A', 'Sciences B']
-            },
-            { 
-                name: 'Arts', 
-                hours: 5, 
-                teachers: 1,
-                teacherNames: ['Arts Teacher']
-            },
-            { 
-                name: 'Sports', 
-                hours: 5, 
-                teachers: 1,
-                teacherNames: ['Sports Teacher']
-            }
+        // Teachers with their max hours
+        const teachers = [
+            { name: 'Languages A', maxHours: 6 },
+            { name: 'Languages B', maxHours: 6 },
+            { name: 'Sciences A', maxHours: 6 },
+            { name: 'Sciences B', maxHours: 6 },
+            { name: 'Arts Teacher', maxHours: 5 },
+            { name: 'Sports Teacher', maxHours: 5 }
         ];
 
-        console.log('Subject requirements:', subjectRequirements);
+        // Track assigned hours
+        const assignedHours = {};
+        teachers.forEach(teacher => {
+            assignedHours[teacher.name] = 0;
+        });
 
-        // Create all subject instances needed with teacher assignment
-        let allSubjectInstances = [];
-        subjectRequirements.forEach(subject => {
-            const teachers = subject.teacherNames;
-            
-            // Distribute hours fairly between teachers
-            const hoursPerTeacher = Math.ceil(subject.hours / subject.teachers);
-            
-            for (let teacherIndex = 0; teacherIndex < subject.teachers; teacherIndex++) {
-                const teacher = teachers[teacherIndex];
-                // Calculate hours for this teacher (last teacher might get fewer hours)
-                const hoursForThisTeacher = (teacherIndex === subject.teachers - 1) 
-                    ? subject.hours - (hoursPerTeacher * (subject.teachers - 1))
-                    : hoursPerTeacher;
-                
-                for (let i = 0; i < hoursForThisTeacher; i++) {
-                    allSubjectInstances.push({
-                        subject: subject.name,
-                        teacher: teacher // This will be "Languages A", "Sciences B", etc.
-                    });
-                }
+        // Create all slots
+        let allSlots = [];
+        days.forEach(day => {
+            for (let hour = 0; hour < hoursPerDay; hour++) {
+                allSlots.push({ day, hour });
             }
         });
 
-        console.log(`Total subject instances to assign: ${allSubjectInstances.length}`);
-
-        // Fisher-Yates shuffle for randomness
+        // Shuffle slots
         function shuffleArray(array) {
             const newArray = [...array];
             for (let i = newArray.length - 1; i > 0; i--) {
@@ -146,143 +99,40 @@ app.post('/generate-timetable', (req, res) => {
             return newArray;
         }
 
-        // Shuffle subject instances for random distribution
-        allSubjectInstances = shuffleArray(allSubjectInstances);
-
-        // Create all possible slots
-        let allSlots = [];
-        days.forEach(day => {
-            for (let hour = 0; hour < hoursPerDay; hour++) {
-                allSlots.push({ day, hour });
-            }
-        });
-
-        // Shuffle slots for random assignment
         allSlots = shuffleArray(allSlots);
 
-        // Track assigned hours per teacher
-        const assignedHours = {
-            'Languages A': 0,
-            'Languages B': 0,
-            'Sciences A': 0,
-            'Sciences B': 0,
-            'Arts Teacher': 0,
-            'Sports Teacher': 0
-        };
-
-        // Track total hours per subject category
-        const subjectCategoryHours = {
-            'Languages': 0,
-            'Sciences': 0,
-            'Arts': 0,
-            'Sports': 0
-        };
-
-        // Assign subjects with teacher consideration
-        function assignSubjectsWithTeachers() {
-            let unassignedInstances = [...allSubjectInstances];
-            let attempts = 0;
-            const maxAttempts = 10000;
-
-            while (unassignedInstances.length > 0 && attempts < maxAttempts) {
-                attempts++;
-                const instance = unassignedInstances[0];
-                const subjectCategory = instance.teacher.includes('Languages') ? 'Languages' : 
-                                      instance.teacher.includes('Sciences') ? 'Sciences' :
-                                      instance.teacher.includes('Arts') ? 'Arts' : 'Sports';
+        // Assign teachers to slots
+        teachers.forEach(teacher => {
+            let hoursAssigned = 0;
+            
+            for (let i = 0; i < teacher.maxHours; i++) {
+                let placed = false;
                 
                 // Try to find an empty slot
-                let placed = false;
-                for (const slot of shuffleArray([...allSlots])) {
-                    const { day, hour } = slot;
-                    
-                    // Check if slot is empty
-                    if (timetable[day][hour].subject === null) {
-                        // Check if teacher is available at this time
-                        if (!teacherSchedule[instance.teacher][day][hour]) {
-                            // Check subject category limit (10h for Languages/Sciences, 5h for Arts/Sports)
-                            const maxCategoryHours = subjectCategory === 'Languages' || subjectCategory === 'Sciences' ? 10 : 5;
-                            
-                            if (subjectCategoryHours[subjectCategory] < maxCategoryHours) {
-                                // Check individual teacher limit (max 5-6 hours each for Languages/Sciences teachers)
-                                const maxTeacherHours = subjectCategory === 'Languages' || subjectCategory === 'Sciences' ? 6 : 5;
-                                
-                                if (assignedHours[instance.teacher] < maxTeacherHours) {
-                                    
-                                    // Place the subject with teacher
-                                    timetable[day][hour].subject = instance.subject;
-                                    timetable[day][hour].teacher = instance.teacher;
-                                    
-                                    // Update tracking
-                                    assignedHours[instance.teacher]++;
-                                    subjectCategoryHours[subjectCategory]++;
-                                    teacherSchedule[instance.teacher][day][hour] = true;
-                                    
-                                    // Remove from unassigned
-                                    unassignedInstances.shift();
-                                    placed = true;
-                                    console.log(`Assigned ${instance.teacher} to ${day} slot ${hour}`);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (!placed) {
-                    // If couldn't place, reshuffle and continue
-                    unassignedInstances = shuffleArray(unassignedInstances);
-                }
-            }
-
-            return unassignedInstances.length === 0;
-        }
-
-        // Execute the assignment
-        const success = assignSubjectsWithTeachers();
-
-        if (!success) {
-            console.warn('Some subjects could not be placed with teacher constraint');
-            // Fallback: try to place remaining subjects without teacher conflict
-            for (const instance of allSubjectInstances) {
                 for (const slot of allSlots) {
                     const { day, hour } = slot;
-                    if (timetable[day][hour].subject === null) {
-                        // Check teacher availability
-                        if (!teacherSchedule[instance.teacher][day][hour]) {
-                            timetable[day][hour].subject = instance.subject;
-                            timetable[day][hour].teacher = instance.teacher;
-                            teacherSchedule[instance.teacher][day][hour] = true;
-                            break;
-                        }
+                    
+                    if (timetable[day][hour] === null) {
+                        timetable[day][hour] = teacher.name;
+                        assignedHours[teacher.name]++;
+                        placed = true;
+                        break;
                     }
                 }
+                
+                if (!placed) {
+                    console.log(`Could not place all hours for ${teacher.name}`);
+                    break;
+                }
             }
-        }
-
-        console.log('Final assigned hours:', assignedHours);
-        console.log('Subject category hours:', subjectCategoryHours);
-
-        // Create display format: Use teacher name directly (e.g., "Languages A", "Sciences B")
-        let displayTimetable = {};
-        days.forEach(day => {
-            displayTimetable[day] = timetable[day].map(slot => 
-                slot.teacher || null
-            );
         });
 
-        // Validate the generated timetable
-        const validation = validateTimetable(displayTimetable, jsonData.subjects);
-        if (!validation.valid) {
-            console.warn('Validation issues:', validation.errors);
-        } else {
-            console.log('Timetable validated successfully - all constraints met!');
-        }
+        console.log('Assigned hours:', assignedHours);
 
-        // Update the data
-        jsonData.timetable = displayTimetable;
+        // Update data
+        jsonData.timetable = timetable;
 
-        // Write back to file
+        // Save to file
         fs.writeFile('data.json', JSON.stringify(jsonData, null, 4), async (err) => {
             if (err) {
                 console.error('Error saving data file:', err);
@@ -296,7 +146,7 @@ app.post('/generate-timetable', (req, res) => {
                 res.json({ 
                     timetable: jsonData.timetable, 
                     timetableHtml: '<h2>Generated Timetable</h2>' + timetableHtml,
-                    message: '✅ New timetable generated! Showing teacher assignments (A/B).'
+                    message: '✅ New timetable generated with teacher A/B assignments!'
                 });
             } catch (renderError) {
                 console.error('Error rendering timetable:', renderError);
