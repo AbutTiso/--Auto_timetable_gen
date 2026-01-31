@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Update available teachers display
+    // Update available teachers display WITH DEBUG LOGGING
     function updateAvailableTeachers() {
         fetch('/get-available-teachers', {
             method: 'POST',
@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .then(response => response.json())
         .then(data => {
+            console.log('Available teachers data:', data); // DEBUG LOG
             availableTeachers = data.availableTeachers || [];
             updateEditModalOptions();
         })
@@ -83,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Update edit modal with available teachers AND deleted teachers
+    // FIXED: Update edit modal with available teachers AND deleted teachers
     function updateEditModalOptions() {
         const subjectSelect = document.getElementById('subject-select');
         if (!subjectSelect) return;
@@ -97,48 +98,56 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .then(response => response.json())
         .then(data => {
-            // Clear existing options except the first one
-            while (subjectSelect.options.length > 1) {
-                subjectSelect.remove(1);
-            }
+            console.log('Edit modal data:', data); // DEBUG LOG
+            
+            // CLEAR ALL OPTIONS COMPLETELY
+            subjectSelect.innerHTML = '';
 
-            // Add empty slot option
+            // Add empty slot option (ONLY ONE)
             const emptyOption = document.createElement('option');
             emptyOption.value = "";
             emptyOption.textContent = "-- Empty slot (no lesson) --";
             emptyOption.className = "text-muted";
             subjectSelect.appendChild(emptyOption);
 
+            let hasOptions = false;
+
             // Add separator for available teachers
             if (data.availableTeachers && data.availableTeachers.length > 0) {
+                hasOptions = true;
                 const availableHeader = document.createElement('option');
                 availableHeader.disabled = true;
                 availableHeader.textContent = "───── Available Teachers ─────";
                 availableHeader.className = "font-weight-bold text-primary";
+                availableHeader.style.backgroundColor = "#e8f4fd";
                 subjectSelect.appendChild(availableHeader);
 
                 data.availableTeachers.forEach(teacher => {
                     const option = document.createElement('option');
                     option.value = teacher.name;
-                    option.textContent = `${teacher.name} (${teacher.currentHours}/${teacher.maxHours}h - ${teacher.remainingHours}h left)`;
+                    option.textContent = `✅ ${teacher.name} (${teacher.currentHours}/${teacher.maxHours}h - ${teacher.remainingHours}h left)`;
                     option.style.color = "#28a745";
+                    option.style.fontWeight = "500";
                     subjectSelect.appendChild(option);
                 });
             }
 
             // Add separator for recently deleted teachers
             if (data.deletedTeachers && data.deletedTeachers.length > 0) {
+                hasOptions = true;
                 const deletedHeader = document.createElement('option');
                 deletedHeader.disabled = true;
                 deletedHeader.textContent = "───── Recently Deleted ─────";
                 deletedHeader.className = "font-weight-bold text-warning";
+                deletedHeader.style.backgroundColor = "#fff3cd";
                 subjectSelect.appendChild(deletedHeader);
 
                 data.deletedTeachers.forEach(teacher => {
                     const option = document.createElement('option');
                     option.value = teacher.name;
                     option.textContent = `↩️ ${teacher.name} (was deleted - ${teacher.currentHours}/${teacher.maxHours}h)`;
-                    option.style.color = "#ff9800";
+                    option.style.color = "#e65100"; // Dark orange for visibility
+                    option.style.fontWeight = "500";
                     option.style.fontStyle = "italic";
                     subjectSelect.appendChild(option);
                 });
@@ -162,10 +171,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (maxedOutTeachers.length > 0) {
+                hasOptions = true;
                 const unavailableHeader = document.createElement('option');
                 unavailableHeader.disabled = true;
                 unavailableHeader.textContent = "───── Unavailable (Maxed Out) ─────";
                 unavailableHeader.className = "font-weight-bold text-secondary";
+                unavailableHeader.style.backgroundColor = "#f8f9fa";
                 subjectSelect.appendChild(unavailableHeader);
 
                 maxedOutTeachers.forEach(teacher => {
@@ -179,18 +190,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
+            // If no options at all
+            if (!hasOptions) {
+                const noOptions = document.createElement('option');
+                noOptions.disabled = true;
+                noOptions.textContent = "All teachers are maxed out";
+                noOptions.className = "text-muted";
+                subjectSelect.appendChild(noOptions);
+            }
+
             // Set current value
             setTimeout(() => {
                 if (currentCell) {
                     const day = currentCell.data('day');
                     const slot = currentCell.closest('tr').data('slot');
                     const currentTeacher = currentTimetable[day] && currentTimetable[day][slot] ? currentTimetable[day][slot] : '';
-                    subjectSelect.value = currentTeacher;
+                    
+                    // Clean teacher name (remove emojis)
+                    const cleanTeacher = currentTeacher.replace(/✅|↩️|⛔/g, '').trim();
+                    subjectSelect.value = cleanTeacher;
+                    
+                    console.log('Setting modal value:', { 
+                        day, slot, currentTeacher, cleanTeacher, 
+                        selectValue: subjectSelect.value 
+                    });
                 }
             }, 100);
         })
         .catch(error => {
             console.error('Error fetching teachers for edit modal:', error);
+            
+            // Show error in dropdown
+            const subjectSelect = document.getElementById('subject-select');
+            if (subjectSelect) {
+                subjectSelect.innerHTML = '';
+                const errorOption = document.createElement('option');
+                errorOption.disabled = true;
+                errorOption.textContent = "Error loading teachers. Please try again.";
+                errorOption.className = "text-danger";
+                subjectSelect.appendChild(errorOption);
+            }
         });
     }
 
@@ -279,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 100);
     });
 
-    // Save changes handler
+    // Save changes handler - FIXED to handle deleted teachers
     document.getElementById('save-changes').addEventListener('click', () => {
         const selectedTeacher = $('#subject-select').val() || '';
         
@@ -293,80 +332,141 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log('Saving changes for:', day, slot, selectedTeacher);
 
-        // Check if teacher can be added (including deleted teachers)
+        // Check if teacher can be added
         if (selectedTeacher && selectedTeacher !== '') {
-            // Check if it's a deleted teacher (they can always be added back if they have hours left)
-            const isDeletedTeacher = selectedTeacher.startsWith('↩️') || 
-                                   (selectedTeacher.includes('Languages') || selectedTeacher.includes('Sciences') || 
-                                    selectedTeacher.includes('Arts') || selectedTeacher.includes('Sports'));
+            // Check if it's a deleted teacher (remove emoji first)
+            const cleanTeacher = selectedTeacher.replace(/↩️|✅|⛔/g, '').trim();
+            const isDeletedTeacher = selectedTeacher.includes('↩️');
             
             if (!isDeletedTeacher) {
                 // For regular teachers, check availability
-                const isAvailable = availableTeachers.some(t => t.name === selectedTeacher);
+                const isAvailable = availableTeachers.some(t => t.name === cleanTeacher);
                 if (!isAvailable) {
-                    showMessage(`❌ Cannot add ${selectedTeacher} - weekly hour limit reached!`, 'error');
+                    showMessage(`❌ Cannot add ${cleanTeacher} - weekly hour limit reached!`, 'error');
                     return;
                 }
             }
-        }
+            
+            // Use clean teacher name (without emoji)
+            const teacherToSave = cleanTeacher;
+            
+            const updatedTimetable = JSON.parse(JSON.stringify(currentTimetable));
+            
+            if (!updatedTimetable[day]) {
+                updatedTimetable[day] = [];
+            }
+            if (updatedTimetable[day][slot] === undefined) {
+                updatedTimetable[day][slot] = null;
+            }
+            
+            updatedTimetable[day][slot] = teacherToSave || null;
 
-        const updatedTimetable = JSON.parse(JSON.stringify(currentTimetable));
-        
-        if (!updatedTimetable[day]) {
-            updatedTimetable[day] = [];
-        }
-        if (updatedTimetable[day][slot] === undefined) {
+            const saveButton = document.getElementById('save-changes');
+            const originalText = saveButton.innerHTML;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            saveButton.disabled = true;
+
+            fetch('/save-timetable', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ timetable: updatedTimetable })
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.text().then(text => { throw new Error(text) });
+                }
+            })
+            .then(data => {
+                console.log('Save changes response:', data);
+                const timetableContainer = document.getElementById('timetable-container');
+                if (timetableContainer && data.timetableHtml) {
+                    timetableContainer.innerHTML = data.timetableHtml;
+                    currentTimetable = data.timetable;
+                }
+                $('#editModal').modal('hide');
+                if (data.message) {
+                    showMessage(data.message, 'success');
+                }
+                updateAvailableTeachers();
+            })
+            .catch(error => {
+                console.error('Error saving timetable:', error.message);
+                const errorElement = document.getElementById('modal-error-message');
+                if(errorElement) {
+                    errorElement.textContent = error.message;
+                    errorElement.style.display = 'block';
+                } else {
+                    showMessage('❌ Error saving changes: ' + error.message, 'error');
+                }
+            })
+            .finally(() => {
+                saveButton.innerHTML = originalText;
+                saveButton.disabled = false;
+            });
+        } else {
+            // Empty slot selected
+            const updatedTimetable = JSON.parse(JSON.stringify(currentTimetable));
+            
+            if (!updatedTimetable[day]) {
+                updatedTimetable[day] = [];
+            }
+            if (updatedTimetable[day][slot] === undefined) {
+                updatedTimetable[day][slot] = null;
+            }
+            
             updatedTimetable[day][slot] = null;
+
+            const saveButton = document.getElementById('save-changes');
+            const originalText = saveButton.innerHTML;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            saveButton.disabled = true;
+
+            fetch('/save-timetable', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ timetable: updatedTimetable })
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.text().then(text => { throw new Error(text) });
+                }
+            })
+            .then(data => {
+                console.log('Save changes response:', data);
+                const timetableContainer = document.getElementById('timetable-container');
+                if (timetableContainer && data.timetableHtml) {
+                    timetableContainer.innerHTML = data.timetableHtml;
+                    currentTimetable = data.timetable;
+                }
+                $('#editModal').modal('hide');
+                if (data.message) {
+                    showMessage(data.message, 'success');
+                }
+                updateAvailableTeachers();
+            })
+            .catch(error => {
+                console.error('Error saving timetable:', error.message);
+                const errorElement = document.getElementById('modal-error-message');
+                if(errorElement) {
+                    errorElement.textContent = error.message;
+                    errorElement.style.display = 'block';
+                } else {
+                    showMessage('❌ Error saving changes: ' + error.message, 'error');
+                }
+            })
+            .finally(() => {
+                saveButton.innerHTML = originalText;
+                saveButton.disabled = false;
+            });
         }
-        
-        updatedTimetable[day][slot] = selectedTeacher || null;
-
-        const saveButton = document.getElementById('save-changes');
-        const originalText = saveButton.innerHTML;
-        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-        saveButton.disabled = true;
-
-        fetch('/save-timetable', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ timetable: updatedTimetable })
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            } else {
-                return response.text().then(text => { throw new Error(text) });
-            }
-        })
-        .then(data => {
-            console.log('Save changes response:', data);
-            const timetableContainer = document.getElementById('timetable-container');
-            if (timetableContainer && data.timetableHtml) {
-                timetableContainer.innerHTML = data.timetableHtml;
-                currentTimetable = data.timetable;
-            }
-            $('#editModal').modal('hide');
-            if (data.message) {
-                showMessage(data.message, 'success');
-            }
-            updateAvailableTeachers();
-        })
-        .catch(error => {
-            console.error('Error saving timetable:', error.message);
-            const errorElement = document.getElementById('modal-error-message');
-            if(errorElement) {
-                errorElement.textContent = error.message;
-                errorElement.style.display = 'block';
-            } else {
-                showMessage('❌ Error saving changes: ' + error.message, 'error');
-            }
-        })
-        .finally(() => {
-            saveButton.innerHTML = originalText;
-            saveButton.disabled = false;
-        });
     });
 
     // Save timetable button handler
