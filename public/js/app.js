@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', () => {
     const homeLink = document.getElementById('home-link');
     const timetableLink = document.getElementById('timetable-link');
@@ -85,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // FIXED: Update edit modal with ONLY deleted teachers (in the same dropdown)
+    // FIXED: Update edit modal with empty slot FIRST, then deleted teachers RIGHT AFTER
     function updateEditModalOptions() {
         const subjectSelect = document.getElementById('subject-select');
         if (!subjectSelect) return;
@@ -104,32 +103,49 @@ document.addEventListener('DOMContentLoaded', () => {
             // CLEAR ALL OPTIONS COMPLETELY
             subjectSelect.innerHTML = '';
 
-            // Add empty slot option (ONLY ONE)
+            // 1. ALWAYS ADD EMPTY SLOT OPTION FIRST
             const emptyOption = document.createElement('option');
             emptyOption.value = "";
             emptyOption.textContent = "-- Empty slot (no lesson) --";
-            emptyOption.className = "text-muted";
+            emptyOption.className = "text-muted font-weight-bold";
+            emptyOption.style.backgroundColor = "#f8f9fa";
             subjectSelect.appendChild(emptyOption);
 
-            // Add ONLY deleted teachers directly after empty slot option
+            // 2. ADD DELETED TEACHERS IMMEDIATELY AFTER EMPTY SLOT (IF ANY)
             if (data.deletedTeachers && data.deletedTeachers.length > 0) {
+                console.log('Adding deleted teachers to dropdown:', data.deletedTeachers);
+                
                 data.deletedTeachers.forEach(teacher => {
                     const option = document.createElement('option');
                     option.value = teacher.name;
                     option.textContent = `↩️ ${teacher.name} (was deleted - ${teacher.currentHours}/${teacher.maxHours}h)`;
-                    option.style.color = "#e65100"; // Dark orange for visibility
+                    option.style.color = "#e65100";
                     option.style.fontWeight = "500";
                     option.style.fontStyle = "italic";
+                    option.style.backgroundColor = "#fff3cd";
                     subjectSelect.appendChild(option);
                 });
-            } else {
-                // If no deleted teachers available
-                const noDeletedOption = document.createElement('option');
-                noDeletedOption.value = "";
-                noDeletedOption.textContent = "No deleted teachers available";
-                noDeletedOption.disabled = true;
-                noDeletedOption.classList.add("text-muted", "font-italic");
-                subjectSelect.appendChild(noDeletedOption);
+            }
+
+            // 3. ADD AVAILABLE TEACHERS AFTER DELETED TEACHERS (IF ANY)
+            if (data.availableTeachers && data.availableTeachers.length > 0) {
+                data.availableTeachers.forEach(teacher => {
+                    const option = document.createElement('option');
+                    option.value = teacher.name;
+                    option.textContent = `✅ ${teacher.name} (${teacher.currentHours}/${teacher.maxHours}h)`;
+                    option.style.color = "#155724";
+                    option.style.fontWeight = "500";
+                    subjectSelect.appendChild(option);
+                });
+            }
+
+            // If no teachers available at all (besides empty slot)
+            if (subjectSelect.options.length === 1) {
+                const noOptions = document.createElement('option');
+                noOptions.disabled = true;
+                noOptions.textContent = "No teachers available to add";
+                noOptions.className = "text-muted font-italic";
+                subjectSelect.appendChild(noOptions);
             }
 
             // Set current value
@@ -139,12 +155,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     const slot = currentCell.closest('tr').data('slot');
                     const currentTeacher = currentTimetable[day] && currentTimetable[day][slot] ? currentTimetable[day][slot] : '';
                     
-                    // Clean teacher name (remove emojis)
-                    const cleanTeacher = currentTeacher.replace(/✅|↩️|⛔/g, '').trim();
-                    subjectSelect.value = cleanTeacher;
+                    // For empty slots, set to empty string
+                    if (!currentTeacher || currentTeacher === '-') {
+                        subjectSelect.value = "";
+                    } else {
+                        // Clean teacher name (remove emojis)
+                        const cleanTeacher = currentTeacher.replace(/✅|↩️|⛔/g, '').trim();
+                        subjectSelect.value = cleanTeacher;
+                    }
                     
                     console.log('Setting modal value:', { 
-                        day, slot, currentTeacher, cleanTeacher, 
+                        day, slot, currentTeacher, 
                         selectValue: subjectSelect.value 
                     });
                 }
@@ -153,13 +174,20 @@ document.addEventListener('DOMContentLoaded', () => {
         .catch(error => {
             console.error('Error fetching teachers for edit modal:', error);
             
-            // Show error in dropdown
+            // Show error in dropdown but still show empty slot
             const subjectSelect = document.getElementById('subject-select');
             if (subjectSelect) {
                 subjectSelect.innerHTML = '';
+                
+                const emptyOption = document.createElement('option');
+                emptyOption.value = "";
+                emptyOption.textContent = "-- Empty slot (no lesson) --";
+                emptyOption.className = "text-muted font-weight-bold";
+                subjectSelect.appendChild(emptyOption);
+                
                 const errorOption = document.createElement('option');
                 errorOption.disabled = true;
-                errorOption.textContent = "Error loading deleted teachers. Please try again.";
+                errorOption.textContent = "Error loading teachers. Please try again.";
                 errorOption.className = "text-danger";
                 subjectSelect.appendChild(errorOption);
             }
