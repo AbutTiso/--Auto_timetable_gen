@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // FIXED: Update edit modal with available teachers AND deleted teachers
+    // FIXED: Update edit modal with ONLY deleted teachers
     function updateEditModalOptions() {
         const subjectSelect = document.getElementById('subject-select');
         if (!subjectSelect) return;
@@ -112,32 +112,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let hasOptions = false;
 
-            // Add separator for available teachers
-            if (data.availableTeachers && data.availableTeachers.length > 0) {
-                hasOptions = true;
-                const availableHeader = document.createElement('option');
-                availableHeader.disabled = true;
-                availableHeader.textContent = "───── Available Teachers ─────";
-                availableHeader.className = "font-weight-bold text-primary";
-                availableHeader.style.backgroundColor = "#e8f4fd";
-                subjectSelect.appendChild(availableHeader);
-
-                data.availableTeachers.forEach(teacher => {
-                    const option = document.createElement('option');
-                    option.value = teacher.name;
-                    option.textContent = `✅ ${teacher.name} (${teacher.currentHours}/${teacher.maxHours}h - ${teacher.remainingHours}h left)`;
-                    option.style.color = "#28a745";
-                    option.style.fontWeight = "500";
-                    subjectSelect.appendChild(option);
-                });
-            }
-
-            // Add separator for recently deleted teachers
+            // ONLY SHOW RECENTLY DELETED TEACHERS
             if (data.deletedTeachers && data.deletedTeachers.length > 0) {
                 hasOptions = true;
                 const deletedHeader = document.createElement('option');
                 deletedHeader.disabled = true;
-                deletedHeader.textContent = "───── Recently Deleted ─────";
+                deletedHeader.textContent = "───── Recently Deleted Teachers ─────";
                 deletedHeader.className = "font-weight-bold text-warning";
                 deletedHeader.style.backgroundColor = "#fff3cd";
                 subjectSelect.appendChild(deletedHeader);
@@ -153,49 +133,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            // Add separator for unavailable teachers (maxed out)
-            const allAvailableNames = [];
-            if (data.availableTeachers) allAvailableNames.push(...data.availableTeachers.map(t => t.name));
-            if (data.deletedTeachers) allAvailableNames.push(...data.deletedTeachers.map(t => t.name));
-            
-            const maxedOutTeachers = [];
-            subjectsData.forEach(subject => {
-                subject.teacherNames?.forEach(teacherName => {
-                    if (!allAvailableNames.includes(teacherName)) {
-                        maxedOutTeachers.push({
-                            name: teacherName,
-                            maxHours: 5
-                        });
-                    }
-                });
-            });
-
-            if (maxedOutTeachers.length > 0) {
-                hasOptions = true;
-                const unavailableHeader = document.createElement('option');
-                unavailableHeader.disabled = true;
-                unavailableHeader.textContent = "───── Unavailable (Maxed Out) ─────";
-                unavailableHeader.className = "font-weight-bold text-secondary";
-                unavailableHeader.style.backgroundColor = "#f8f9fa";
-                subjectSelect.appendChild(unavailableHeader);
-
-                maxedOutTeachers.forEach(teacher => {
-                    const option = document.createElement('option');
-                    option.value = teacher.name;
-                    option.textContent = `⛔ ${teacher.name} (MAXED OUT - 5/5h)`;
-                    option.disabled = true;
-                    option.style.color = "#dc3545";
-                    option.style.textDecoration = "line-through";
-                    subjectSelect.appendChild(option);
-                });
-            }
-
-            // If no options at all
+            // If no deleted teachers available
             if (!hasOptions) {
                 const noOptions = document.createElement('option');
                 noOptions.disabled = true;
-                noOptions.textContent = "All teachers are maxed out";
-                noOptions.className = "text-muted";
+                noOptions.textContent = "No deleted teachers available";
+                noOptions.className = "text-muted font-italic";
                 subjectSelect.appendChild(noOptions);
             }
 
@@ -226,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 subjectSelect.innerHTML = '';
                 const errorOption = document.createElement('option');
                 errorOption.disabled = true;
-                errorOption.textContent = "Error loading teachers. Please try again.";
+                errorOption.textContent = "Error loading deleted teachers. Please try again.";
                 errorOption.className = "text-danger";
                 subjectSelect.appendChild(errorOption);
             }
