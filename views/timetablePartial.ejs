@@ -1,0 +1,238 @@
+<div class="table-responsive">
+    <table id="timetable" class="table table-bordered table-hover">
+        <thead class="thead-dark">
+            <tr>
+                <th style="width: 120px;">Time</th>
+                <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
+                    <th data-day="<%= day %>" class="text-center"><%= day %></th>
+                <% }); %>
+            </tr>
+        </thead>
+
+        <tbody>
+            <!-- Lesson 1 (Slot 0) -->
+            <tr data-slot="0">
+                <td class="font-weight-bold">
+                    <div>8:00 - 9:00</div>
+                    <small class="text-muted">Lesson 1</small>
+                </td>
+                <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
+                    <% const subject = data.timetable && data.timetable[day] && data.timetable[day][0]; %>
+                    <td data-day="<%= day %>" class="slot-cell">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="subjects flex-grow-1">
+                                <% if (subject) { %>
+                                    <span class="badge badge-primary subject-badge"><%= subject %></span>
+                                <% } else { %>
+                                    <span class="text-muted">-</span>
+                                <% } %>
+                            </span>
+                            <div class="btn-group btn-group-sm ml-2">
+                                <button class="btn btn-outline-primary edit-btn" data-toggle="modal" data-target="#editModal" 
+                                        title="Edit lesson">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-danger delete-btn" title="Clear lesson">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                <% }); %>
+            </tr>
+
+            <!-- Lesson 2 (Slot 1) -->
+            <tr data-slot="1">
+                <td class="font-weight-bold">
+                    <div>9:00 - 10:00</div>
+                    <small class="text-muted">Lesson 2</small>
+                </td>
+                <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
+                    <% const subject = data.timetable && data.timetable[day] && data.timetable[day][1]; %>
+                    <td data-day="<%= day %>" class="slot-cell">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="subjects flex-grow-1">
+                                <% if (subject) { %>
+                                    <span class="badge badge-primary subject-badge"><%= subject %></span>
+                                <% } else { %>
+                                    <span class="text-muted">-</span>
+                                <% } %>
+                            </span>
+                            <div class="btn-group btn-group-sm ml-2">
+                                <button class="btn btn-outline-primary edit-btn" data-toggle="modal" data-target="#editModal" 
+                                        title="Edit lesson">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-danger delete-btn" title="Clear lesson">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                <% }); %>
+            </tr>
+
+            <!-- Lesson 3 (Slot 2) -->
+            <tr data-slot="2">
+                <td class="font-weight-bold">
+                    <div>10:00 - 11:00</div>
+                    <small class="text-muted">Lesson 3</small>
+                </td>
+                <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
+                    <% const subject = data.timetable && data.timetable[day] && data.timetable[day][2]; %>
+                    <td data-day="<%= day %>" class="slot-cell">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="subjects flex-grow-1">
+                                <% if (subject) { %>
+                                    <span class="badge badge-primary subject-badge"><%= subject %></span>
+                                <% } else { %>
+                                    <span class="text-muted">-</span>
+                                <% } %>
+                            </span>
+                            <div class="btn-group btn-group-sm ml-2">
+                                <button class="btn btn-outline-primary edit-btn" data-toggle="modal" data-target="#editModal" 
+                                        title="Edit lesson">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-danger delete-btn" title="Clear lesson">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                <% }); %>
+            </tr>
+
+            <!-- Morning Break (No Slot) -->
+            <tr class="table-info">
+                <td class="font-weight-bold text-center">
+                    <div>11:00 - 11:25</div>
+                    <small class="text-muted">Morning Break</small>
+                </td>
+                <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
+                    <td class="text-center text-muted">
+                        <i class="fas fa-coffee"></i> Break
+                    </td>
+                <% }); %>
+            </tr>
+
+            <!-- Lesson 4 (Slot 3) -->
+            <tr data-slot="3">
+                <td class="font-weight-bold">
+                    <div>11:25 - 12:25</div>
+                    <small class="text-muted">Lesson 4</small>
+                </td>
+                <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
+                    <% const subject = data.timetable && data.timetable[day] && data.timetable[day][3]; %>
+                    <td data-day="<%= day %>" class="slot-cell">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="subjects flex-grow-1">
+                                <% if (subject) { %>
+                                    <span class="badge badge-primary subject-badge"><%= subject %></span>
+                                <% } else { %>
+                                    <span class="text-muted">-</span>
+                                <% } %>
+                            </span>
+                            <div class="btn-group btn-group-sm ml-2">
+                                <button class="btn btn-outline-primary edit-btn" data-toggle="modal" data-target="#editModal" 
+                                        title="Edit lesson">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-danger delete-btn" title="Clear lesson">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                <% }); %>
+            </tr>
+
+            <!-- Lesson 5 (Slot 4) -->
+            <tr data-slot="4">
+                <td class="font-weight-bold">
+                    <div>12:25 - 13:25</div>
+                    <small class="text-muted">Lesson 5</small>
+                </td>
+                <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
+                    <% const subject = data.timetable && data.timetable[day] && data.timetable[day][4]; %>
+                    <td data-day="<%= day %>" class="slot-cell">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="subjects flex-grow-1">
+                                <% if (subject) { %>
+                                    <span class="badge badge-primary subject-badge"><%= subject %></span>
+                                <% } else { %>
+                                    <span class="text-muted">-</span>
+                                <% } %>
+                            </span>
+                            <div class="btn-group btn-group-sm ml-2">
+                                <button class="btn btn-outline-primary edit-btn" data-toggle="modal" data-target="#editModal" 
+                                        title="Edit lesson">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-danger delete-btn" title="Clear lesson">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                <% }); %>
+            </tr>
+
+            <!-- Lesson 6 (Slot 5) -->
+            <tr data-slot="5">
+                <td class="font-weight-bold">
+                    <div>13:25 - 14:25</div>
+                    <small class="text-muted">Lesson 6</small>
+                </td>
+                <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
+                    <% const subject = data.timetable && data.timetable[day] && data.timetable[day][5]; %>
+                    <td data-day="<%= day %>" class="slot-cell">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="subjects flex-grow-1">
+                                <% if (subject) { %>
+                                    <span class="badge badge-primary subject-badge"><%= subject %></span>
+                                <% } else { %>
+                                    <span class="text-muted">-</span>
+                                <% } %>
+                            </span>
+                            <div class="btn-group btn-group-sm ml-2">
+                                <button class="btn btn-outline-primary edit-btn" data-toggle="modal" data-target="#editModal" 
+                                        title="Edit lesson">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-danger delete-btn" title="Clear lesson">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                <% }); %>
+            </tr>
+
+            <!-- Lunch Break (No Slot) -->
+            <tr class="table-warning">
+                <td class="font-weight-bold text-center">
+                    <div>14:25 - 15:00</div>
+                    <small class="text-muted">Lunch Break</small>
+                </td>
+                <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
+                    <td class="text-center text-muted">
+                        <i class="fas fa-utensils"></i> Lunch
+                    </td>
+                <% }); %>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-4 d-flex justify-content-between align-items-center flex-wrap">
+    <div class="constraints-info mb-2">
+        <small class="text-muted">
+            <strong>Constraints:</strong> 
+            1 lesson per session • 6 hours/day • 10h Languages (2 teachers) • 10h Sciences (2 teachers) • 5h Arts (1 teacher) • 5h Sports (1 teacher)
+        </small>
+    </div>
+    <button id="save-timetable" class="btn btn-success btn-lg">
+        <i class="fas fa-save"></i> Save Timetable
+    </button>
+</div>

@@ -1,0 +1,70 @@
+{
+    "subjects": [
+        {
+            "name": "Languages",
+            "hours": 10,
+            "teachers": 2,
+            "category": "Languages"
+        },
+        {
+            "name": "Sciences",
+            "hours": 10,
+            "teachers": 2,
+            "category": "Sciences"
+        },
+        {
+            "name": "Arts",
+            "hours": 5,
+            "teachers": 1,
+            "category": "Arts"
+        },
+        {
+            "name": "Sports",
+            "hours": 5,
+            "teachers": 1,
+            "category": "Sports"
+        }
+    ],
+    "timetable": {
+        "Monday": [
+            "Sciences",
+            "Arts",
+            "Arts",
+            "Sports",
+            "Sciences",
+            "Languages"
+        ],
+        "Tuesday": [
+            "Sciences",
+            "Languages",
+            "Sports",
+            "Languages",
+            "Sciences",
+            "Languages"
+        ],
+        "Wednesday": [
+            "Sciences",
+            "Sports",
+            "Sciences",
+            "Languages",
+            "Sciences",
+            "Languages"
+        ],
+        "Thursday": [
+            "Sciences",
+            "Languages",
+            "Arts",
+            "Languages",
+            "Sciences",
+            "Sports"
+        ],
+        "Friday": [
+            "Languages",
+            "Languages",
+            "Arts",
+            "Arts",
+            "Sciences",
+            "Sports"
+        ]
+    }
+}
