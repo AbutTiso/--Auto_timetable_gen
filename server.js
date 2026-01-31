@@ -334,18 +334,28 @@ function getAvailableTeachers(timetable, subjects, deletedLessons = []) {
     return availableTeachers;
 }
 
-// FIXED: Function to get deleted teachers specifically for edit modal
+// FIXED: Function to get deleted teachers specifically for edit modal - ALWAYS show deleted teachers
 function getDeletedTeachersForEdit(timetable, subjects, deletedLessons = []) {
-    const teacherHours = calculateTeacherHours(timetable);
-    const categoryHours = calculateCategoryHours(timetable, subjects);
+    console.log('getDeletedTeachersForEdit called with:', {
+        timetableKeys: Object.keys(timetable || {}),
+        deletedLessonsCount: deletedLessons.length,
+        deletedLessons: deletedLessons
+    });
+    
+    const teacherHours = calculateTeacherHours(timetable || {});
+    const categoryHours = calculateCategoryHours(timetable || {}, subjects);
     const deletedTeachersList = [];
     
-    // Get unique deleted teachers from deletedLessons
-    const uniqueDeletedTeachers = [...new Set(deletedLessons
+    // Get ALL teachers that have been deleted (even if they appear multiple times)
+    const allDeletedTeachers = deletedLessons
         .filter(lesson => lesson.teacher && lesson.teacher.trim() !== '')
-        .map(lesson => lesson.teacher))];
+        .map(lesson => lesson.teacher);
     
-    console.log('Unique deleted teachers found:', uniqueDeletedTeachers);
+    console.log('All deleted teachers found:', allDeletedTeachers);
+    
+    // Create a Set to get unique teachers
+    const uniqueDeletedTeachers = [...new Set(allDeletedTeachers)];
+    console.log('Unique deleted teachers:', uniqueDeletedTeachers);
     
     uniqueDeletedTeachers.forEach(teacher => {
         if (teacher) {
@@ -376,24 +386,31 @@ function getDeletedTeachersForEdit(timetable, subjects, deletedLessons = []) {
                 
                 console.log(`Checking ${teacher}: currentHours=${currentHours}, max=${maxHoursPerTeacher}, remaining=${remainingTeacherHours}, categoryRemaining=${remainingCategoryHours}`);
                 
-                // Check if teacher can be added back (has remaining hours)
-                if (remainingTeacherHours > 0 && remainingCategoryHours > 0) {
-                    deletedTeachersList.push({
-                        name: teacher,
-                        currentHours: currentHours,
-                        maxHours: maxHoursPerTeacher,
-                        remainingHours: Math.min(remainingTeacherHours, remainingCategoryHours),
-                        subject: teacherSubject.name,
-                        type: 'deleted',
-                        categoryRemaining: remainingCategoryHours,
-                        recentlyDeleted: true
-                    });
-                }
+                // ALWAYS add deleted teacher to the list, even if at max hours
+                // This allows user to see and potentially re-add deleted teachers
+                deletedTeachersList.push({
+                    name: teacher,
+                    currentHours: currentHours,
+                    maxHours: maxHoursPerTeacher,
+                    remainingHours: Math.min(remainingTeacherHours, remainingCategoryHours),
+                    subject: teacherSubject.name,
+                    type: 'deleted',
+                    categoryRemaining: remainingCategoryHours,
+                    recentlyDeleted: true,
+                    canBeAdded: remainingTeacherHours > 0 && remainingCategoryHours > 0
+                });
+            } else {
+                console.log(`Could not find subject for teacher: ${teacher}`);
             }
         }
     });
     
-    console.log('Deleted teachers list to return:', deletedTeachersList);
+    console.log('Deleted teachers list to return:', deletedTeachersList.map(t => ({
+        name: t.name,
+        currentHours: t.currentHours,
+        maxHours: t.maxHours,
+        canBeAdded: t.canBeAdded
+    })));
     return deletedTeachersList;
 }
 
@@ -515,7 +532,7 @@ app.post('/delete-slot', (req, res) => {
         if (jsonData.timetable && jsonData.timetable[day] && jsonData.timetable[day][slot] !== undefined) {
             const deletedTeacher = jsonData.timetable[day][slot];
             
-            // Add to deleted lessons history (limit to last 10)
+            // ALWAYS add to deleted lessons history when a teacher is deleted
             if (deletedTeacher && deletedTeacher !== null) {
                 const deletedLesson = {
                     teacher: deletedTeacher,
@@ -529,20 +546,24 @@ app.post('/delete-slot', (req, res) => {
                     jsonData.deletedLessons = [];
                 }
                 
-                // Check if this teacher is already in deleted lessons (by teacher name only)
-                const alreadyExists = jsonData.deletedLessons.some(lesson => 
-                    lesson.teacher === deletedTeacher
+                // Remove any existing entries for this teacher (we want most recent only)
+                jsonData.deletedLessons = jsonData.deletedLessons.filter(lesson => 
+                    lesson.teacher !== deletedTeacher
                 );
                 
-                if (!alreadyExists) {
-                    // Add to beginning of array (most recent first)
-                    jsonData.deletedLessons.unshift(deletedLesson);
-                    
-                    // Keep only last 10 deleted lessons
-                    if (jsonData.deletedLessons.length > 10) {
-                        jsonData.deletedLessons = jsonData.deletedLessons.slice(0, 10);
+                // Add to beginning of array (most recent first)
+                jsonData.deletedLessons.unshift(deletedLesson);
+                
+                // Keep only last 10 unique deleted teachers
+                const uniqueTeachers = [];
+                const filteredLessons = [];
+                for (const lesson of jsonData.deletedLessons) {
+                    if (!uniqueTeachers.includes(lesson.teacher) && uniqueTeachers.length < 10) {
+                        uniqueTeachers.push(lesson.teacher);
+                        filteredLessons.push(lesson);
                     }
                 }
+                jsonData.deletedLessons = filteredLessons;
             }
             
             jsonData.timetable[day][slot] = null;
@@ -577,7 +598,7 @@ app.post('/delete-slot', (req, res) => {
                     timetable: jsonData.timetable, 
                     timetableHtml: '<h2>Generated Timetable</h2>' + timetableHtml,
                     deletedLessons: jsonData.deletedLessons || [],
-                    message: '✅ Slot cleared successfully! Deleted lesson is now available in edit menu.' + availableMessage,
+                    message: '✅ Slot cleared successfully! Deleted teacher is now available in edit dropdown.' + availableMessage,
                     availableTeachers: availableTeachers,
                     deletedTeachers: deletedTeachers
                 });
