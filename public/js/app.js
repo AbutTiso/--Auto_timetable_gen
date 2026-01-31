@@ -66,6 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update available teachers display WITH DEBUG LOGGING
     function updateAvailableTeachers() {
+        console.log('updateAvailableTeachers called, currentTimetable:', currentTimetable);
+        
         fetch('/get-available-teachers', {
             method: 'POST',
             headers: {
@@ -84,10 +86,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // FIXED: Update edit modal with empty slot FIRST, then deleted teachers RIGHT AFTER
+    // FIXED: Update edit modal with empty slot FIRST, then deleted teachers
     function updateEditModalOptions() {
         const subjectSelect = document.getElementById('subject-select');
         if (!subjectSelect) return;
+
+        console.log('updateEditModalOptions called');
 
         fetch('/get-available-teachers', {
             method: 'POST',
@@ -98,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .then(response => response.json())
         .then(data => {
-            console.log('Edit modal data:', data); // DEBUG LOG
+            console.log('Edit modal data received:', data); // DEBUG LOG
             
             // CLEAR ALL OPTIONS COMPLETELY
             subjectSelect.innerHTML = '';
@@ -111,24 +115,39 @@ document.addEventListener('DOMContentLoaded', () => {
             emptyOption.style.backgroundColor = "#f8f9fa";
             subjectSelect.appendChild(emptyOption);
 
-            // 2. ADD DELETED TEACHERS IMMEDIATELY AFTER EMPTY SLOT (IF ANY)
+            // 2. CHECK IF WE HAVE DELETED TEACHERS
             if (data.deletedTeachers && data.deletedTeachers.length > 0) {
                 console.log('Adding deleted teachers to dropdown:', data.deletedTeachers);
                 
                 data.deletedTeachers.forEach(teacher => {
                     const option = document.createElement('option');
                     option.value = teacher.name;
-                    option.textContent = `↩️ ${teacher.name} (was deleted - ${teacher.currentHours}/${teacher.maxHours}h)`;
-                    option.style.color = "#e65100";
-                    option.style.fontWeight = "500";
-                    option.style.fontStyle = "italic";
+                    // Show deleted teachers with their current status
+                    const statusText = teacher.canBeAdded === false ? 
+                        `⛔ ${teacher.name} (max hours reached - ${teacher.currentHours}/${teacher.maxHours}h)` :
+                        `↩️ ${teacher.name} (was deleted - ${teacher.currentHours}/${teacher.maxHours}h)`;
+                    option.textContent = statusText;
+                    
+                    if (teacher.canBeAdded === false) {
+                        option.style.color = "#dc3545"; // Red for maxed out
+                        option.style.fontWeight = "500";
+                        option.disabled = true; // Disable if can't be added
+                    } else {
+                        option.style.color = "#e65100"; // Orange for available deleted
+                        option.style.fontWeight = "500";
+                        option.style.fontStyle = "italic";
+                    }
                     option.style.backgroundColor = "#fff3cd";
                     subjectSelect.appendChild(option);
                 });
+            } else {
+                console.log('No deleted teachers found in response');
             }
 
-            // 3. ADD AVAILABLE TEACHERS AFTER DELETED TEACHERS (IF ANY)
+            // 3. ADD AVAILABLE TEACHERS (IF ANY)
             if (data.availableTeachers && data.availableTeachers.length > 0) {
+                console.log('Adding available teachers to dropdown:', data.availableTeachers);
+                
                 data.availableTeachers.forEach(teacher => {
                     const option = document.createElement('option');
                     option.value = teacher.name;
@@ -137,10 +156,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     option.style.fontWeight = "500";
                     subjectSelect.appendChild(option);
                 });
+            } else {
+                console.log('No available teachers found in response');
             }
 
             // If no teachers available at all (besides empty slot)
             if (subjectSelect.options.length === 1) {
+                console.log('No teachers found, showing "No teachers available" message');
                 const noOptions = document.createElement('option');
                 noOptions.disabled = true;
                 noOptions.textContent = "No teachers available to add";
@@ -297,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedTeacher && selectedTeacher !== '') {
             // Check if it's a deleted teacher (remove emoji first)
             const cleanTeacher = selectedTeacher.replace(/↩️|✅|⛔/g, '').trim();
-            const isDeletedTeacher = selectedTeacher.includes('↩️');
+            const isDeletedTeacher = selectedTeacher.includes('↩️') || selectedTeacher.includes('⛔');
             
             if (!isDeletedTeacher) {
                 // For regular teachers, check availability
@@ -306,6 +328,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     showMessage(`❌ Cannot add ${cleanTeacher} - weekly hour limit reached!`, 'error');
                     return;
                 }
+            } else if (selectedTeacher.includes('⛔')) {
+                // If it's a deleted teacher that's maxed out
+                showMessage(`❌ Cannot add ${cleanTeacher} - this teacher has reached their maximum hours!`, 'error');
+                return;
             }
             
             // Use clean teacher name (without emoji)
@@ -548,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Delete slot handler
+    // Delete slot handler - ADDED DEBUG LOGGING
     document.addEventListener('click', function(e) {
         const deleteBtn = e.target.closest('.delete-btn');
         if (deleteBtn) {
@@ -560,6 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const slot = parseInt(cell.closest('tr').getAttribute('data-slot'));
             
             console.log('Deleting slot - Day:', day, 'Slot:', slot);
+            console.log('Current timetable before delete:', currentTimetable);
 
             const originalHtml = deleteBtn.innerHTML;
             deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
