@@ -1,9 +1,11 @@
 const express = require('express');
 const fs = require('fs');
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;  // ← ONLY CHANGE THIS LINE
 const ejs = require('ejs');
 
+// EVERYTHING ELSE STAYS EXACTLY THE SAME AS YOUR CODE ABOVE ↓
+// [All your existing code remains unchanged...]
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use(express.json());
@@ -407,5 +409,5 @@ app.get('/get-timetable', (req, res) => {
 });
 
 app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+    console.log(`Server is running on port ${port}`);  // Updated log message (optional)
 });
