@@ -17,21 +17,32 @@
                     <small class="text-muted">Lesson 1</small>
                 </td>
                 <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
-                    <% const slotValue = data.timetable && data.timetable[day] && data.timetable[day][0]; %>
+                    <% const teacher = data.timetable && data.timetable[day] && data.timetable[day][0]; %>
                     <td data-day="<%= day %>" class="slot-cell">
                         <div class="d-flex justify-content-between align-items-start">
                             <span class="subjects flex-grow-1">
-                                <% if (slotValue) { 
-                                    const subjectMatch = slotValue.match(/^([^(]+)/);
-                                    const teacherMatch = slotValue.match(/\(([^)]+)\)/);
-                                    const subject = subjectMatch ? subjectMatch[0].trim() : slotValue;
-                                    const teacher = teacherMatch ? teacherMatch[1].trim() : '';
-                                %>
-                                    <div class="subject-with-teacher">
-                                        <span class="badge badge-primary subject-badge"><%= subject %></span>
-                                        <% if (teacher) { %>
-                                            <br>
-                                            <small class="text-muted teacher-name"><%= teacher %></small>
+                                <% if (teacher) { %>
+                                    <div class="teacher-display">
+                                        <% if (teacher.includes('Languages')) { %>
+                                            <span class="badge badge-languages teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Sciences')) { %>
+                                            <span class="badge badge-sciences teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Arts')) { %>
+                                            <span class="badge badge-arts teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Sports')) { %>
+                                            <span class="badge badge-sports teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else { %>
+                                            <span class="badge badge-secondary teacher-badge">
+                                                <%= teacher %>
+                                            </span>
                                         <% } %>
                                     </div>
                                 <% } else { %>
@@ -59,21 +70,32 @@
                     <small class="text-muted">Lesson 2</small>
                 </td>
                 <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
-                    <% const slotValue = data.timetable && data.timetable[day] && data.timetable[day][1]; %>
+                    <% const teacher = data.timetable && data.timetable[day] && data.timetable[day][1]; %>
                     <td data-day="<%= day %>" class="slot-cell">
                         <div class="d-flex justify-content-between align-items-start">
                             <span class="subjects flex-grow-1">
-                                <% if (slotValue) { 
-                                    const subjectMatch = slotValue.match(/^([^(]+)/);
-                                    const teacherMatch = slotValue.match(/\(([^)]+)\)/);
-                                    const subject = subjectMatch ? subjectMatch[0].trim() : slotValue;
-                                    const teacher = teacherMatch ? teacherMatch[1].trim() : '';
-                                %>
-                                    <div class="subject-with-teacher">
-                                        <span class="badge badge-primary subject-badge"><%= subject %></span>
-                                        <% if (teacher) { %>
-                                            <br>
-                                            <small class="text-muted teacher-name"><%= teacher %></small>
+                                <% if (teacher) { %>
+                                    <div class="teacher-display">
+                                        <% if (teacher.includes('Languages')) { %>
+                                            <span class="badge badge-languages teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Sciences')) { %>
+                                            <span class="badge badge-sciences teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Arts')) { %>
+                                            <span class="badge badge-arts teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Sports')) { %>
+                                            <span class="badge badge-sports teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else { %>
+                                            <span class="badge badge-secondary teacher-badge">
+                                                <%= teacher %>
+                                            </span>
                                         <% } %>
                                     </div>
                                 <% } else { %>
@@ -101,21 +123,32 @@
                     <small class="text-muted">Lesson 3</small>
                 </td>
                 <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
-                    <% const slotValue = data.timetable && data.timetable[day] && data.timetable[day][2]; %>
+                    <% const teacher = data.timetable && data.timetable[day] && data.timetable[day][2]; %>
                     <td data-day="<%= day %>" class="slot-cell">
                         <div class="d-flex justify-content-between align-items-start">
                             <span class="subjects flex-grow-1">
-                                <% if (slotValue) { 
-                                    const subjectMatch = slotValue.match(/^([^(]+)/);
-                                    const teacherMatch = slotValue.match(/\(([^)]+)\)/);
-                                    const subject = subjectMatch ? subjectMatch[0].trim() : slotValue;
-                                    const teacher = teacherMatch ? teacherMatch[1].trim() : '';
-                                %>
-                                    <div class="subject-with-teacher">
-                                        <span class="badge badge-primary subject-badge"><%= subject %></span>
-                                        <% if (teacher) { %>
-                                            <br>
-                                            <small class="text-muted teacher-name"><%= teacher %></small>
+                                <% if (teacher) { %>
+                                    <div class="teacher-display">
+                                        <% if (teacher.includes('Languages')) { %>
+                                            <span class="badge badge-languages teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Sciences')) { %>
+                                            <span class="badge badge-sciences teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Arts')) { %>
+                                            <span class="badge badge-arts teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Sports')) { %>
+                                            <span class="badge badge-sports teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else { %>
+                                            <span class="badge badge-secondary teacher-badge">
+                                                <%= teacher %>
+                                            </span>
                                         <% } %>
                                     </div>
                                 <% } else { %>
@@ -156,21 +189,32 @@
                     <small class="text-muted">Lesson 4</small>
                 </td>
                 <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
-                    <% const slotValue = data.timetable && data.timetable[day] && data.timetable[day][3]; %>
+                    <% const teacher = data.timetable && data.timetable[day] && data.timetable[day][3]; %>
                     <td data-day="<%= day %>" class="slot-cell">
                         <div class="d-flex justify-content-between align-items-start">
                             <span class="subjects flex-grow-1">
-                                <% if (slotValue) { 
-                                    const subjectMatch = slotValue.match(/^([^(]+)/);
-                                    const teacherMatch = slotValue.match(/\(([^)]+)\)/);
-                                    const subject = subjectMatch ? subjectMatch[0].trim() : slotValue;
-                                    const teacher = teacherMatch ? teacherMatch[1].trim() : '';
-                                %>
-                                    <div class="subject-with-teacher">
-                                        <span class="badge badge-primary subject-badge"><%= subject %></span>
-                                        <% if (teacher) { %>
-                                            <br>
-                                            <small class="text-muted teacher-name"><%= teacher %></small>
+                                <% if (teacher) { %>
+                                    <div class="teacher-display">
+                                        <% if (teacher.includes('Languages')) { %>
+                                            <span class="badge badge-languages teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Sciences')) { %>
+                                            <span class="badge badge-sciences teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Arts')) { %>
+                                            <span class="badge badge-arts teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Sports')) { %>
+                                            <span class="badge badge-sports teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else { %>
+                                            <span class="badge badge-secondary teacher-badge">
+                                                <%= teacher %>
+                                            </span>
                                         <% } %>
                                     </div>
                                 <% } else { %>
@@ -198,21 +242,32 @@
                     <small class="text-muted">Lesson 5</small>
                 </td>
                 <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
-                    <% const slotValue = data.timetable && data.timetable[day] && data.timetable[day][4]; %>
+                    <% const teacher = data.timetable && data.timetable[day] && data.timetable[day][4]; %>
                     <td data-day="<%= day %>" class="slot-cell">
                         <div class="d-flex justify-content-between align-items-start">
                             <span class="subjects flex-grow-1">
-                                <% if (slotValue) { 
-                                    const subjectMatch = slotValue.match(/^([^(]+)/);
-                                    const teacherMatch = slotValue.match(/\(([^)]+)\)/);
-                                    const subject = subjectMatch ? subjectMatch[0].trim() : slotValue;
-                                    const teacher = teacherMatch ? teacherMatch[1].trim() : '';
-                                %>
-                                    <div class="subject-with-teacher">
-                                        <span class="badge badge-primary subject-badge"><%= subject %></span>
-                                        <% if (teacher) { %>
-                                            <br>
-                                            <small class="text-muted teacher-name"><%= teacher %></small>
+                                <% if (teacher) { %>
+                                    <div class="teacher-display">
+                                        <% if (teacher.includes('Languages')) { %>
+                                            <span class="badge badge-languages teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Sciences')) { %>
+                                            <span class="badge badge-sciences teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Arts')) { %>
+                                            <span class="badge badge-arts teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Sports')) { %>
+                                            <span class="badge badge-sports teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else { %>
+                                            <span class="badge badge-secondary teacher-badge">
+                                                <%= teacher %>
+                                            </span>
                                         <% } %>
                                     </div>
                                 <% } else { %>
@@ -240,21 +295,32 @@
                     <small class="text-muted">Lesson 6</small>
                 </td>
                 <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach(day => { %>
-                    <% const slotValue = data.timetable && data.timetable[day] && data.timetable[day][5]; %>
+                    <% const teacher = data.timetable && data.timetable[day] && data.timetable[day][5]; %>
                     <td data-day="<%= day %>" class="slot-cell">
                         <div class="d-flex justify-content-between align-items-start">
                             <span class="subjects flex-grow-1">
-                                <% if (slotValue) { 
-                                    const subjectMatch = slotValue.match(/^([^(]+)/);
-                                    const teacherMatch = slotValue.match(/\(([^)]+)\)/);
-                                    const subject = subjectMatch ? subjectMatch[0].trim() : slotValue;
-                                    const teacher = teacherMatch ? teacherMatch[1].trim() : '';
-                                %>
-                                    <div class="subject-with-teacher">
-                                        <span class="badge badge-primary subject-badge"><%= subject %></span>
-                                        <% if (teacher) { %>
-                                            <br>
-                                            <small class="text-muted teacher-name"><%= teacher %></small>
+                                <% if (teacher) { %>
+                                    <div class="teacher-display">
+                                        <% if (teacher.includes('Languages')) { %>
+                                            <span class="badge badge-languages teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Sciences')) { %>
+                                            <span class="badge badge-sciences teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Arts')) { %>
+                                            <span class="badge badge-arts teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else if (teacher.includes('Sports')) { %>
+                                            <span class="badge badge-sports teacher-badge">
+                                                <%= teacher %>
+                                            </span>
+                                        <% } else { %>
+                                            <span class="badge badge-secondary teacher-badge">
+                                                <%= teacher %>
+                                            </span>
                                         <% } %>
                                     </div>
                                 <% } else { %>
@@ -291,41 +357,52 @@
     </table>
 </div>
 
-<!-- Add some CSS for better teacher display -->
+<!-- Add CSS for teacher badges -->
 <style>
-.subject-with-teacher {
+.teacher-display {
     line-height: 1.3;
     min-height: 45px;
     display: flex;
     flex-direction: column;
     justify-content: center;
 }
-.teacher-name {
-    font-size: 0.8rem;
-    font-style: italic;
-    color: #6c757d;
-    margin-top: 2px;
-}
-.subject-badge {
+.teacher-badge {
     font-size: 0.85rem;
-    padding: 4px 8px;
+    padding: 5px 10px;
     display: inline-block;
-    margin-bottom: 2px;
+    font-weight: 500;
 }
 
-/* Different badge colors for different subjects */
-.badge-primary[class*="Languages"] {
+/* Custom badge colors for different teachers */
+.badge-languages {
     background-color: #007bff; /* Blue for Languages */
+    color: white;
 }
-.badge-primary[class*="Sciences"] {
+.badge-sciences {
     background-color: #28a745; /* Green for Sciences */
+    color: white;
 }
-.badge-primary[class*="Arts"] {
+.badge-arts {
     background-color: #ffc107; /* Yellow for Arts */
     color: #212529;
 }
-.badge-primary[class*="Sports"] {
+.badge-sports {
     background-color: #dc3545; /* Red for Sports */
+    color: white;
+}
+
+.badge-languages[class*="A"] {
+    background-color: #1e88e5; /* Slightly different blue for Languages A */
+}
+.badge-languages[class*="B"] {
+    background-color: #64b5f6; /* Lighter blue for Languages B */
+}
+
+.badge-sciences[class*="A"] {
+    background-color: #43a047; /* Slightly different green for Sciences A */
+}
+.badge-sciences[class*="B"] {
+    background-color: #81c784; /* Lighter green for Sciences B */
 }
 
 .slot-cell {
@@ -337,12 +414,12 @@
 <div class="mt-4 d-flex justify-content-between align-items-center flex-wrap">
     <div class="constraints-info mb-2">
         <small class="text-muted">
-            <strong>Weekly Constraints:</strong> 
-            10h Languages (Lang Teacher A, Lang Teacher B) • 10h Sciences (Sci Teacher A, Sci Teacher B) • 5h Arts (Arts Teacher) • 5h Sports (Sports Teacher)
+            <strong>Teacher Assignments:</strong> 
+            Languages A (max 6h) • Languages B (max 6h) • Sciences A (max 6h) • Sciences B (max 6h) • Arts Teacher (5h) • Sports Teacher (5h)
         </small>
         <br>
         <small class="text-muted">
-            <strong>Daily Limit:</strong> 6 hours per day • <strong>Format:</strong> Subject (Teacher)
+            <strong>Daily Limit:</strong> 6 hours per day • <strong>Colors:</strong> Languages (Blue) • Sciences (Green) • Arts (Yellow) • Sports (Red)
         </small>
     </div>
     <button id="save-timetable" class="btn btn-success btn-lg">
